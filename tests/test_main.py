@@ -2,6 +2,7 @@ from logimage.main import Cell, RuleList, UndefinedCellState, FullCellState, Emp
  InvalidGridSet,InvalidCellStateModification, Logimage, InvalidRule,RuleElement, Rule, RuleSet, Problem
 import numpy as np
 import pytest
+import pandas as pd
 
 def test_cell_with_same_coordinates_and_same_state_are_equal():
     cell = Cell(cell_state=EmptyCellState())
@@ -259,7 +260,79 @@ def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_is_one():
 # puis remonter les résultats éventuels des recherches dans le problème global, et ce de manière récursive. (il peut y avoir
 # un sous problème de sous problème)
 
+def test_identify_full_rules_from_problem_cells_with_one_full_cell():
+    problem = Problem(rule = Rule([1]), cells = [Cell(FullCellState())])
+    identified_rules = problem.identify_full_rules()
+    assert(identified_rules == [{"len" : 1, "initial_index" : 0}])
 
+def test_identify_full_rules_from_problem_cells_with_two_full_cell():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    identified_rules = problem.identify_full_rules()
+    assert(identified_rules == [{"len" : 2, "initial_index" : 0}])
+
+def test_identify_full_rules_from_problem_cells_with_two_full_cells_and_one_empty_cell():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    identified_rules = problem.identify_full_rules()
+    assert(identified_rules == [{"len" : 2, "initial_index" : 0}])
+
+def test_find_sequences_without_zeroes_in_empty_series_returns_empty_list():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    numerized_series = pd.Series()
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = []
+    assert(list_of_not_zero_series == expected_list_of_series)
+
+def test_find_sequences_without_zeroes_in_only_zero_series_returns_empty_list():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    numerized_series = pd.Series([0])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = []
+    assert(list_of_not_zero_series == expected_list_of_series)
+
+def test_find_sequences_without_zeroes_in_simple_series():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    numerized_series = pd.Series([1,1])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1])]
+    assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
+
+def test_find_sequences_without_zeroes_in_series_with_one_zero_at_the_end():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    numerized_series = pd.Series([1,1,0])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1])]
+    assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
+
+def test_find_sequences_without_zeroes_in_series_with_one_zero_at_the_beginning():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    numerized_series = pd.Series([0,1,1])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1],index=[1,2])]
+    pd.testing.assert_series_equal(list_of_not_zero_series[0], expected_list_of_series[0])
+
+def test_find_sequences_without_zeroes_in_series_with_one_zero_at_the_beginning_and_end():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    numerized_series = pd.Series([0,1,1,0])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1],index=[1,2])]
+    pd.testing.assert_series_equal(list_of_not_zero_series[0], expected_list_of_series[0])
+
+def test_find_sequences_without_zeroes_in_series_with_two_non_zero_sequences():
+    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    numerized_series = pd.Series([1,1,0,1])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1],index=[0,1]),pd.Series([1],index=[3])]
+    assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
+
+def test_identify_full_rules_from_problem_cells_with_rules_2_1_and_2_full_cells_one_empty_one_full():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState()),Cell(FullCellState())])
+    identified_rules = problem.identify_full_rules()
+    assert(identified_rules == [{"len" : 2, "initial_index" : 0},{"len" : 1, "initial_index" : 3}])
+
+def test_assess_cell_rule_element_position_for_problem_with_len_1_and_1_full_cell():
+    problem = Problem(rule = Rule([1]), cells = [Cell(FullCellState())])
+    list_of_rule_element_indexes = problem.assess_cell_rule_correspondance()
+    assert(list_of_rule_element_indexes == [0])
 
 def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_first_cell_empty_is_zero():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(EmptyCellState()), Cell(), Cell(), Cell()])

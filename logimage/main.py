@@ -1,5 +1,6 @@
 from scipy import *
 import numpy as np
+import pandas as pd
 
 class CellState:
 
@@ -167,6 +168,56 @@ class Problem:
         for cell in self.cells:
             numerized_list.append(cell.numerize())
         return numerized_list
+    
+    def assess_cell_rule_correspondance(self):
+        initial_list = [None] * self.length
+    
+    @staticmethod
+    def find_first_index_of_value(input_series, value):
+        if len(input_series) == 0:
+            return None
+        else:
+            if input_series.iloc[0] == value:
+                return input_series.index[0]
+            else:
+                return Problem.find_first_index_of_value(input_series[1:],value)
+
+    @staticmethod
+    def find_first_index_of_non_value(input_series, value):
+        if len(input_series) == 0:
+            return None
+        else:
+            if input_series.iloc[0] != value:
+                return input_series.index[0]
+            else:
+                return Problem.find_first_index_of_non_value(input_series[1:],value)
+
+    @staticmethod
+    def find_series_without_value_zero(input_numerized_series):
+        if len(input_numerized_series) == 0:
+            return []
+        first_zero_index = Problem.find_first_index_of_value(input_numerized_series,0)
+        if Problem.find_first_index_of_value(input_numerized_series,0) is None:
+            print("pas de zero")
+            return [input_numerized_series]
+        else:
+            if input_numerized_series.iloc[0] == 0:
+                print("zéro au début")
+                first_non_zero_index = Problem.find_first_index_of_non_value(input_numerized_series,0)
+                return Problem.find_series_without_value_zero(input_numerized_series[input_numerized_series.index >= first_non_zero_index])
+            else:
+                print("zero pas au début")
+                return [input_numerized_series[input_numerized_series.index < first_zero_index]] + Problem.find_series_without_value_zero(input_numerized_series[input_numerized_series.index >= first_zero_index])
+                
+
+    def identify_full_rules(self):
+        list_of_identified_rules = []
+        numerized_list_series = pd.Series(self.numerized_list)
+        list_of_non_zero_series = Problem.find_series_without_value_zero(numerized_list_series)
+        for non_zero_serie in list_of_non_zero_series:
+            if Problem.find_first_index_of_value(non_zero_serie,None) is None:
+                list_of_identified_rules.append({"len":len(non_zero_serie),"initial_index":non_zero_serie.index[0]})
+        return list_of_identified_rules
     
     def compute_number_of_freedom_degrees(self):
         minimum_len_from_rule = self.rule.compute_min_possible_len()

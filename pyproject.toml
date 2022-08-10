@@ -9,6 +9,7 @@ python = ">=3.8,<3.12"
 tk = "^0.1.0"
 scipy = "^1.9.0"
 numpy = "^1.23.1"
+pandas = "^1.4.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
