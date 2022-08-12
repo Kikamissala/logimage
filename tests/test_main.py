@@ -1,6 +1,6 @@
 from logimage.main import Cell, CellState, FullBlock, RuleList, Grid, \
  InvalidGridSet,InvalidCellStateModification, Logimage, InvalidRule,RuleElement, Rule, RuleSet, Problem,\
-    Solution,FullBlock
+    Solution,FullBlock, InvalidProblem, CellUpdateError
 import numpy as np
 import pytest
 import pandas as pd
@@ -35,6 +35,26 @@ def test_modify_cell_state_from_undefined_to_full():
     cell.full()
     assert(cell == Cell(CellState.full))
 
+def test_update_cell_state_from_undefined_to_empty():
+    cell = Cell(cell_state=CellState.undefined)
+    cell.update_state(CellState.empty)
+    assert(cell == Cell(CellState.empty))
+
+def test_update_cell_state_from_undefined_to_full():
+    cell = Cell(cell_state=CellState.undefined)
+    cell.update_state(CellState.full)
+    assert(cell == Cell(CellState.full))
+
+def test_update_cell_state_with_not_cell_state_value_raises():
+    cell = Cell(cell_state=CellState.undefined)
+    with pytest.raises(InvalidCellStateModification) as err:
+        cell.update_state(1)
+
+def test_update_cell_state_with_non_undefined_cell_raises():
+    cell = Cell(cell_state=CellState.full)
+    with pytest.raises(InvalidCellStateModification) as err:
+        cell.update_state(CellState.empty)
+
 def test_numerize_undefined_cell_returns_none():
     cell = Cell()
     numerized_cell = cell.numerize()
@@ -49,6 +69,16 @@ def test_numerize_full_cell_returns_one():
     cell = Cell(CellState.full)
     numerized_cell = cell.numerize()
     assert(numerized_cell == 1)
+
+def test_update_cell_rule_element_index_changes_value():
+    cell = Cell(CellState.full)
+    cell.set_rule_element_index(0)
+    assert(cell.rule_element_index == 0)
+
+def test_update_cell_rule_element_for_non_full_cell_raises():
+    cell = Cell(CellState.undefined)
+    with pytest.raises(CellUpdateError) as err:
+        cell.set_rule_element_index(0)
 
 def test_grid_creation_with_one_row_and_one_column_returns_list_of_list_of_one_cell():
     grid = Grid(row_number = 1, column_number = 1)
@@ -114,11 +144,11 @@ def test_emptying_not_undefined_cell_in_grid_raises():
 
 def test_translate_rule_element_of_element_1_returns_list_of_len_1_with_1():
     rule_element = RuleElement(1)
-    assert(rule_element.translate_to_list() == [1])
+    assert(rule_element.translate_to_list() == [Cell(CellState.full)])
 
 def test_translate_rule_element_of_element_2_returns_list_of_len_2_with_1():
     rule_element = RuleElement(2)
-    assert(rule_element.translate_to_list() == [1,1])
+    assert(rule_element.translate_to_list() == [Cell(CellState.full),Cell(CellState.full)])
 
 def test_check_if_elements_of_rule_are_rule_elements():
     rule = Rule([1,1])
@@ -129,6 +159,11 @@ def test_compute_rule_minimum_possible_line_len():
     rule = Rule([1,1])
     minimum_possible_line_len = rule.compute_min_possible_len()
     assert(minimum_possible_line_len == 3)
+
+def test_compute_rule_minimum_possible_line_len_for_unique_rule_element():
+    rule = Rule([2])
+    minimum_possible_line_len = rule.compute_min_possible_len()
+    assert(minimum_possible_line_len == 2)
 
 def test_check_if_elements_of_rulelist_are_rules():
     rule_list = RuleList([[1,1],[1,1]])
@@ -163,15 +198,18 @@ def test_extracting_problem_from_logimage():
 
 def test_problem_contains_rule_and_list_of_cells_and_numerized_list_is_None_when_undefined():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
-    assert(problem.numerized_list == [-1,-1,-1])
+    numerized_cell_list = problem.numerize_cell_list()
+    assert(numerized_cell_list == [-1,-1,-1])
 
 def test_problem_numerized_list_is_ones_when_full():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.full)])
-    assert(problem.numerized_list == [1,1,1])
+    numerized_cell_list = problem.numerize_cell_list()
+    assert(numerized_cell_list == [1,1,1])
 
 def test_problem_numerized_list_is_zeroes_when_full():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty)])
-    assert(problem.numerized_list == [0,0,0])
+    numerized_cell_list = problem.numerize_cell_list()
+    assert(numerized_cell_list == [0,0,0])
 
 def test_is_problem_solved_returns_true_when_no_cell_is_undefined():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.full)])
@@ -183,15 +221,34 @@ def test_problem_with_fully_defined_line_by_rule_returns_true_when_function_call
     bool_is_line_fully_defined_by_rule = problem.is_line_fully_defined_by_rule()
     assert(bool_is_line_fully_defined_by_rule == True)
 
+def test_updating_cells_list_with_new_states_changes_cells_list():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
+    new_cells_list = [Cell(CellState.full), Cell(), Cell()]
+    problem.update_cells_list(new_cells_list)
+    assert(problem.cells == new_cells_list)
+
+def test_updating_cells_list_with_new_rule_element_index_sets_new_rule_element_index():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(), Cell()])
+    new_cells_list = [Cell(CellState.full,rule_element_index=0), Cell(), Cell()]
+    problem.update_cells_list(new_cells_list)
+    assert(problem.cells == new_cells_list)
+
+def test_updating_cells_list_with_new_cell_none_keeps_previous_cell():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(), Cell()])
+    new_cells_list = [Cell(), Cell(), Cell()]
+    problem.update_cells_list(new_cells_list)
+    expected_cells_list = [Cell(CellState.full), Cell(), Cell()]
+    assert(problem.cells == expected_cells_list)
+
 def test_solving_complete_problem_from_all_undefined_returns_fully_defined_list():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
     problem.fully_defined_solve()
-    assert((problem.is_solved() == True) & (problem.numerized_list == [1,0,1]))
+    assert((problem.is_solved() == True) & (problem.numerize_cell_list() == [1,0,1]))
 
 def test_solving_complete_problem_with_len_4_and_rule_2_1_returns_numerized_list_with_1_1_0_1():
     problem = Problem(rule = Rule([2,1]), cells = [Cell(), Cell(), Cell(), Cell()])
     problem.fully_defined_solve()
-    assert((problem.is_solved() == True) & (problem.numerized_list == [1,1,0,1]))
+    assert((problem.is_solved() == True) & (problem.numerize_cell_list() == [1,1,0,1]))
 
 def test_compute_number_of_freedom_degrees_of_fully_defined_rule_is_zero():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
@@ -422,6 +479,11 @@ def test_identify_rule_element_if_two_full_blocks_at_left_extremity_returns_inde
     identified_rule_element_indexes = problem.identify_rule_element_indexes()
     assert((identified_rule_element_indexes == [0,None,1,None,None]))
 
+def test_indentify_rule_element_index_in_solved_problem():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0,None,1]))
+
 def test_identify_rule_element_if_block_at_right_extremity_with_one_empty_at_right():
     problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
     identified_rule_element_indexes = problem.identify_rule_element_indexes()
@@ -432,34 +494,128 @@ def test_identify_rule_element_if_two_full_blocks_at_right_extremity_returns_ind
     identified_rule_element_indexes = problem.identify_rule_element_indexes()
     assert((identified_rule_element_indexes == [None,None,0,None,1]))
 
-@pytest.mark.skip()
-def test_assess_cell_rule_element_position_for_problem_with_len_1_and_1_full_cell():
+def test_update_rule_element_indexes_in_problem_changes_value_updates_attribute_and_corresponding_cells():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
+    new_rule_element_indexes = [0,None,1]
+    problem.update_rule_element_indexes(new_rule_element_indexes)
+    expected_updated_cells = [Cell(CellState.full, rule_element_index = 0),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)]
+    assert((problem.rule_elements_indexes == [0,None,1]) & (problem.cells == expected_updated_cells))
+
+def test_update_rule_element_indexes_changing_already_defined_value_raises():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
+    new_rule_element_indexes = [0,None,0]
+    with pytest.raises(InvalidProblem) as err:
+        problem.update_rule_element_indexes(new_rule_element_indexes)
+
+def test_update_rule_element_indexes_in_problem_with_new_value_none_compared_to_already_known_index_keeps_previous_index():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
+    new_rule_element_indexes = [None,None,None]
+    problem.update_rule_element_indexes(new_rule_element_indexes)
+    expected_updated_cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)]
+    assert((problem.rule_elements_indexes == [None,None,1]) & (problem.cells == expected_updated_cells))
+
+def test_scan_and_update_rule_element_indexes():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
+    problem.identify_and_update_rule_element_indexes()
+    expected_updated_cells = [Cell(CellState.full, rule_element_index = 0),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)]
+    assert((problem.rule_elements_indexes == [0,None,1]) & (problem.cells == expected_updated_cells))
+
+def test_problem_subject_to_overlap_solving_for_rule_2_and_len_3_is_true():
+    problem = Problem(rule = Rule([2]), cells = [Cell(),Cell(),Cell()])
+    bool_is_subject_to_overlap_solving = problem.is_subject_to_overlap_solving()
+    assert(bool_is_subject_to_overlap_solving == True)
+
+def test_problem_subject_to_overlap_solving_for_rule_1_and_len_2_is_false():
+    problem = Problem(rule = Rule([1]), cells = [Cell(),Cell()])
+    bool_is_subject_to_overlap_solving = problem.is_subject_to_overlap_solving()
+    assert(bool_is_subject_to_overlap_solving == False)
+
+def test_problem_subject_to_overlap_solving_for_rule_2_1_and_len_5_is_true():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(),Cell(),Cell(),Cell(),Cell()])
+    bool_is_subject_to_overlap_solving = problem.is_subject_to_overlap_solving()
+    assert(bool_is_subject_to_overlap_solving == True)
+
+def test_problem_subject_to_overlap_solving_for_rule_2_1_and_len_6_is_true():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(),Cell(),Cell(),Cell(),Cell(),Cell()])
+    bool_is_subject_to_overlap_solving = problem.is_subject_to_overlap_solving()
+    assert(bool_is_subject_to_overlap_solving == False)
+
+def test_min_starting_index_of_first_element_of_rule_is_0():
+    rule = Rule([1])
+    min_starting_index_of_rule = rule.compute_min_starting_indexes()
+    assert(min_starting_index_of_rule == [0])
+
+def test_min_starting_index_of_rule_1_1_is_0_2():
+    rule = Rule([1,1])
+    min_starting_index_of_rule = rule.compute_min_starting_indexes()
+    assert(min_starting_index_of_rule == [0,2])
+
+def test_min_starting_index_of_rule_1_2_1_is_0_2_5():
+    rule = Rule([1,2,1])
+    min_starting_index_of_rule = rule.compute_min_starting_indexes()
+    assert(min_starting_index_of_rule == [0,2,5])
+
+def test_overlapping_solving_for_rule_2_and_len_3_has_middle_element_full_with_rule_element_index_0():
+    problem = Problem(rule = Rule([2]), cells = [Cell(),Cell(),Cell()])
+    problem.overlapping_solve()
+    expected_cells_list = [Cell(),Cell(CellState.full, rule_element_index=0),Cell()]
+    assert(problem.cells == expected_cells_list)
+
+def test_problem_subject_to_overlap_solving_for_rule_2_1_and_len_5_has_second_element_full_and_rule_element_index_0():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(),Cell(),Cell(),Cell(),Cell()])
+    problem.overlapping_solve()
+    expected_cells_list = [Cell(),Cell(CellState.full, rule_element_index=0),Cell(),Cell(),Cell()]
+    assert(problem.cells == expected_cells_list)
+
+def test_problem_subject_to_overlap_solving_for_rule_1_2_and_len_5_has_second_to_last_element_full_and_rule_element_index_0():
+    problem = Problem(rule = Rule([1,2]), cells = [Cell(),Cell(),Cell(),Cell(),Cell()])
+    problem.overlapping_solve()
+    expected_cells_list = [Cell(),Cell(),Cell(),Cell(CellState.full, rule_element_index=1),Cell()]
+    assert(problem.cells == expected_cells_list)
+
+def test_problem_all_full_cell_found_of_solved_problem_is_true():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
-    list_of_rule_element_indexes = problem.assess_cell_rule_correspondance()
-    assert(list_of_rule_element_indexes == [0])
+    bool_all_full_cell_found = problem.all_full_cell_found()
+    assert(bool_all_full_cell_found == True)
 
-@pytest.mark.skip()
-def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_first_cell_empty_is_zero():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.empty), Cell(), Cell(), Cell()])
-    nb_freedom_degrees = problem.compute_number_of_freedom_degrees()
-    assert(nb_freedom_degrees == 0)
+def test_problem_all_full_cell_found_of_problem_with_rule_2_and_two_full_cell_and_one_undefined_is_true():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full), Cell(CellState.full), Cell()])
+    bool_all_full_cell_found = problem.all_full_cell_found()
+    assert(bool_all_full_cell_found == True)
 
-@pytest.mark.skip()
-def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_last_cell_empty_is_zero():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell(), Cell(CellState.empty)])
-    nb_freedom_degrees = problem.compute_number_of_freedom_degrees()
-    assert(nb_freedom_degrees == 0)
+def test_problem_all_full_cell_found_of_problem_with_rule_2_1_and_two_full_cell_is_false():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(),Cell()])
+    bool_all_full_cell_found = problem.all_full_cell_found()
+    assert(bool_all_full_cell_found == False)
 
-@pytest.mark.skip()
-def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_second_cell_empty_is_1():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(CellState.empty), Cell(), Cell()])
-    nb_freedom_degrees = problem.compute_number_of_freedom_degrees()
-    assert(nb_freedom_degrees == 0)
+def test_all_full_cell_found_solve_fills_undefined_cells():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(),Cell()])
+    problem.all_full_cell_found_solve()
+    expected_cells_list = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.empty)]
+    assert(problem.cells == expected_cells_list)
 
-@pytest.mark.skip()
-def test_overlap_problem_solving_returns_partially_or_totally_solved_problem():
-    assert(True == False)
+def test_all_full_cell_found_solve_fills_undefined_cells_in_2_1_rule_problem():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(),Cell(CellState.full)])
+    problem.all_full_cell_found_solve()
+    expected_cells_list = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.full)]
+    assert(problem.cells == expected_cells_list)
 
-@pytest.mark.skip()
-def test_solving_problem_returns_list_of_modified_indexes():
-    assert(True == False)
+def test_is_left_extremity_fillable_with_empty_of_problem_with_first_cell_undefined_then_empty_and_first_rule_element_2_is_true():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined), Cell(CellState.empty), Cell(CellState.full),Cell()])
+    bool_left_extremity_fillable = problem.is_left_extremity_empty_fillable()
+    assert(bool_left_extremity_fillable == True)
+
+def test_is_left_extremity_fillable_with_empty_of_problem_with_first_two_cells_undefined_then_empty_and_rule_element_3_is_true():
+    problem = Problem(rule = Rule([3]), cells = [Cell(CellState.undefined), Cell(CellState.undefined), Cell(CellState.empty),Cell(),Cell(),Cell()])
+    bool_left_extremity_fillable = problem.is_left_extremity_empty_fillable()
+    assert(bool_left_extremity_fillable == True)
+
+def test_is_left_extremity_fillable_with_empty_of_problem_with_first_cell_empty_then_undefined_then_empty_and_rule_element_2_is_true():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.empty), Cell(CellState.undefined), Cell(CellState.empty),Cell(),Cell(),Cell()])
+    bool_left_extremity_fillable = problem.is_left_extremity_empty_fillable()
+    assert(bool_left_extremity_fillable == True)
+
+def test_is_left_extremity_fillable_with_empty_of_problem_with_first_cell_undefined_then_full_and_first_rule_element_2_is_false():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined), Cell(CellState.full), Cell(),Cell()])
+    bool_left_extremity_fillable = problem.is_left_extremity_empty_fillable()
+    assert(bool_left_extremity_fillable == False)
