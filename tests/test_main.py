@@ -1,84 +1,52 @@
-from logimage.main import Cell, RuleList, UndefinedCellState, FullCellState, EmptyCellState, Grid, \
- InvalidGridSet,InvalidCellStateModification, Logimage, InvalidRule,RuleElement, Rule, RuleSet, Problem
+from logimage.main import Cell, CellState, FullBlock, RuleList, Grid, \
+ InvalidGridSet,InvalidCellStateModification, Logimage, InvalidRule,RuleElement, Rule, RuleSet, Problem,\
+    Solution,FullBlock
 import numpy as np
 import pytest
 import pandas as pd
 
-def test_cell_with_same_coordinates_and_same_state_are_equal():
-    cell = Cell(cell_state=EmptyCellState())
-    other_cell = Cell(cell_state=EmptyCellState())
+def test_cell_with_same_same_state_are_equal():
+    cell = Cell(cell_state=CellState.empty)
+    other_cell = Cell(cell_state=CellState.empty)
     assert(cell == other_cell)
 
 def test_cell_with_same_coordinates_and_different_state_are_different():
-    cell = Cell(cell_state=EmptyCellState())
-    other_cell = Cell(cell_state=UndefinedCellState())
+    cell = Cell(cell_state=CellState.empty)
+    other_cell = Cell(cell_state=CellState.undefined)
     assert(cell != other_cell)
 
-def test_undefined_cell_state_value_equals_undefined():
-    cell_state = UndefinedCellState()
-    assert(cell_state.value == "undefined")
-
-def test_empty_cell_state_value_equals_empty():
-    cell_state = EmptyCellState()
-    assert(cell_state.value == "empty")
-
-def test_full_cell_state_value_equals_full():
-    cell_state = FullCellState()
-    assert(cell_state.value == "full")
-
-def test_undefined_cell_state_equals_other_undefined_cell_state():
-    cell_state = UndefinedCellState()
-    assert(cell_state == UndefinedCellState())
-
-def test_empty_cell_state_equals_other_empty_cell_state():
-    cell_state = EmptyCellState()
-    assert(cell_state == EmptyCellState())
-
-def test_undefined_cell_state_different_empty_cell_state():
-    cell_state = UndefinedCellState()
-    assert(cell_state != EmptyCellState())
-
-def test_default_cell_state_at_creation_is_undefined():
-    cell = Cell()
-    assert(cell.cell_state == UndefinedCellState())
-
-def test_modifying_cell_state_in_cell_to_empty():
-    cell = Cell()
-    cell.empty()
-    assert(cell.cell_state == EmptyCellState())
-
-def test_modifying_cell_state_in_cell_to_full():
-    cell = Cell()
-    cell.full()
-    assert(cell.cell_state == FullCellState())
-
 def test_modify_cell_state_to_full_from_not_undefined_raises():
-    cell = Cell(cell_state=EmptyCellState())
+    cell = Cell(cell_state=CellState.empty)
     with pytest.raises(InvalidCellStateModification) as err:
         cell.full()
 
 def test_modify_cell_state_to_empty_from_not_undefined_raises():
-    cell = Cell(cell_state=EmptyCellState())
+    cell = Cell(cell_state=CellState.full)
     with pytest.raises(InvalidCellStateModification) as err:
         cell.empty()
 
 def test_modify_cell_state_from_not_undefined_raises():
-    cell = Cell(cell_state=EmptyCellState())
+    cell = Cell(cell_state=CellState.full)
     with pytest.raises(InvalidCellStateModification) as err:
         cell.full()
+
+def test_modify_cell_state_from_undefined_to_full():
+    cell = Cell(cell_state=CellState.undefined)
+    cell.full()
+    assert(cell == Cell(CellState.full))
 
 def test_numerize_undefined_cell_returns_none():
     cell = Cell()
     numerized_cell = cell.numerize()
-    assert(numerized_cell == None)
+    assert(numerized_cell == -1)
 
 def test_numerize_empty_cell_returns_0():
-    cell = Cell(EmptyCellState())
+    cell = Cell(CellState.empty)
     numerized_cell = cell.numerize()
     assert(numerized_cell == 0)
 
 def test_numerize_full_cell_returns_one():
-    cell = Cell(FullCellState())
+    cell = Cell(CellState.full)
     numerized_cell = cell.numerize()
     assert(numerized_cell == 1)
 
@@ -110,13 +78,13 @@ def test_get_row_in_grid_returns_right_row():
 
 def test_set_cell_in_grid_updates_grid():
     grid = Grid(row_number = 2, column_number = 2)
-    grid[0,0] = Cell(EmptyCellState())
-    assert(grid[0,0] == Cell(EmptyCellState()))
+    grid[0,0] = Cell(CellState.empty)
+    assert(grid[0,0] == Cell(CellState.empty))
 
 def test_set_row_values_in_grid_updates_grid():
     grid = Grid(row_number = 2, column_number = 2)
-    grid[0,:] = np.array([Cell(EmptyCellState()),Cell(EmptyCellState())])
-    assert(np.array_equal(grid[0,:], np.array([Cell(EmptyCellState()),Cell(EmptyCellState())])))
+    grid[0,:] = np.array([Cell(CellState.empty),Cell(CellState.empty)])
+    assert(np.array_equal(grid[0,:], np.array([Cell(CellState.empty),Cell(CellState.empty)])))
 
 def test_set_value_in_grid_not_cell_returns_error():
     grid = Grid(row_number = 2, column_number = 2)
@@ -131,12 +99,12 @@ def test_set_row_in_grid_not_cell_returns_error():
 def test_set_cell_at_coordinates_to_empty():
     grid = Grid(row_number = 2, column_number = 2)
     grid.empty(0,0)
-    assert(grid[0,0] == Cell(cell_state=EmptyCellState()))
+    assert(grid[0,0] == Cell(cell_state=CellState.empty))
 
 def test_set_cell_at_coordinates_to_full():
     grid = Grid(row_number = 2, column_number = 2)
     grid.full(0,0)
-    assert(grid[0,0] == Cell(cell_state=FullCellState()))
+    assert(grid[0,0] == Cell(cell_state=CellState.full))
 
 def test_emptying_not_undefined_cell_in_grid_raises():
     grid = Grid(row_number = 2, column_number = 2)
@@ -195,18 +163,18 @@ def test_extracting_problem_from_logimage():
 
 def test_problem_contains_rule_and_list_of_cells_and_numerized_list_is_None_when_undefined():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
-    assert(problem.numerized_list == [None,None,None])
+    assert(problem.numerized_list == [-1,-1,-1])
 
 def test_problem_numerized_list_is_ones_when_full():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(FullCellState()), Cell(FullCellState()), Cell(FullCellState())])
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.full)])
     assert(problem.numerized_list == [1,1,1])
 
 def test_problem_numerized_list_is_zeroes_when_full():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(EmptyCellState()), Cell(EmptyCellState()), Cell(EmptyCellState())])
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty)])
     assert(problem.numerized_list == [0,0,0])
 
 def test_is_problem_solved_returns_true_when_no_cell_is_undefined():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(FullCellState()), Cell(FullCellState()), Cell(FullCellState())])
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.full)])
     is_problem_solved = problem.is_solved()
     assert(is_problem_solved == True)
 
@@ -260,97 +228,238 @@ def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_is_one():
 # puis remonter les résultats éventuels des recherches dans le problème global, et ce de manière récursive. (il peut y avoir
 # un sous problème de sous problème)
 
-def test_identify_full_rules_from_problem_cells_with_one_full_cell():
-    problem = Problem(rule = Rule([1]), cells = [Cell(FullCellState())])
-    identified_rules = problem.identify_full_rules()
-    assert(identified_rules == [{"len" : 1, "initial_index" : 0}])
-
-def test_identify_full_rules_from_problem_cells_with_two_full_cell():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
-    identified_rules = problem.identify_full_rules()
-    assert(identified_rules == [{"len" : 2, "initial_index" : 0}])
-
-def test_identify_full_rules_from_problem_cells_with_two_full_cells_and_one_empty_cell():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
-    identified_rules = problem.identify_full_rules()
-    assert(identified_rules == [{"len" : 2, "initial_index" : 0}])
+def test_first_index_of_value_for_list_with_none_value():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
+    numerized_series = pd.Series([1])
+    first_non_none_index = problem.find_first_index_of_value(numerized_series,None)
+    assert(first_non_none_index is None)
 
 def test_find_sequences_without_zeroes_in_empty_series_returns_empty_list():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
     numerized_series = pd.Series()
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = []
     assert(list_of_not_zero_series == expected_list_of_series)
 
 def test_find_sequences_without_zeroes_in_only_zero_series_returns_empty_list():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
     numerized_series = pd.Series([0])
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = []
     assert(list_of_not_zero_series == expected_list_of_series)
 
 def test_find_sequences_without_zeroes_in_simple_series():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
     numerized_series = pd.Series([1,1])
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = [pd.Series([1,1])]
     assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
 
 def test_find_sequences_without_zeroes_in_series_with_one_zero_at_the_end():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
     numerized_series = pd.Series([1,1,0])
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = [pd.Series([1,1])]
-    assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
+    pd.testing.assert_series_equal(list_of_not_zero_series[0], expected_list_of_series[0])
 
 def test_find_sequences_without_zeroes_in_series_with_one_zero_at_the_beginning():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
     numerized_series = pd.Series([0,1,1])
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = [pd.Series([1,1],index=[1,2])]
     pd.testing.assert_series_equal(list_of_not_zero_series[0], expected_list_of_series[0])
 
 def test_find_sequences_without_zeroes_in_series_with_one_zero_at_the_beginning_and_end():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
     numerized_series = pd.Series([0,1,1,0])
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = [pd.Series([1,1],index=[1,2])]
     pd.testing.assert_series_equal(list_of_not_zero_series[0], expected_list_of_series[0])
 
 def test_find_sequences_without_zeroes_in_series_with_two_non_zero_sequences():
-    problem = Problem(rule = Rule([2]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState())])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
     numerized_series = pd.Series([1,1,0,1])
     list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
     expected_list_of_series = [pd.Series([1,1],index=[0,1]),pd.Series([1],index=[3])]
     assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
 
-def test_identify_full_rules_from_problem_cells_with_rules_2_1_and_2_full_cells_one_empty_one_full():
-    problem = Problem(rule = Rule([2,1]), cells = [Cell(FullCellState()),Cell(FullCellState()),Cell(EmptyCellState()),Cell(FullCellState())])
-    identified_rules = problem.identify_full_rules()
-    assert(identified_rules == [{"len" : 2, "initial_index" : 0},{"len" : 1, "initial_index" : 3}])
+def test_find_sequences_without_zeroes_in_serie_with_none_values():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
+    numerized_series = pd.Series([1,1,0,-1]).astype("int64",errors ="ignore")
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1],index=[0,1]),pd.Series([-1],index=[3])]
+    assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
 
+def test_find_sequences_without_zeroes_in_serie_with_none_value():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
+    numerized_series = pd.Series([1,1,0,-1])
+    list_of_not_zero_series = problem.find_series_without_value_zero(numerized_series)
+    expected_list_of_series = [pd.Series([1,1]),pd.Series([-1],index = [3])]
+    assert(all([list_of_not_zero_series[i].equals(expected_list_of_series[i]) for i in range(0,len(list_of_not_zero_series))]))
+
+def test_identify_full_rules_from_problem_cells_with_one_full_cell():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    identified_rules = problem.identify_full_blocks()
+    assert(identified_rules == [FullBlock(block_len=1,initial_index=0)])
+
+def test_identify_full_rules_from_problem_cells_with_two_full_cell():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
+    identified_rules = problem.identify_full_blocks()
+    assert(identified_rules == [FullBlock(block_len = 2, initial_index = 0)])
+
+def test_identify_full_rules_from_problem_cells_with_two_full_cells_and_one_empty_cell():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
+    identified_rules = problem.identify_full_blocks()
+    assert(identified_rules == [FullBlock(block_len = 2, initial_index = 0)])
+
+def test_identify_full_rules_from_problem_cells_with_rules_2_1_and_2_full_cells_one_empty_one_full():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full)])
+    identified_blocks = problem.identify_full_blocks()
+    assert(identified_blocks == [FullBlock(block_len = 2, initial_index = 0),FullBlock(block_len = 1, initial_index = 3)])
+
+def test_identify_full_rules_from_problem_cells_with_rules_2_1_and_2_full_cells_one_empty_one_undefined():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    identified_blocks = problem.identify_full_blocks()
+    assert(identified_blocks == [FullBlock(block_len = 2, initial_index = 0)])
+
+def test_identify_full_rules_from_problem_cells_with_rules_2_1_and_2_full_cells_one_undefined_returns_empty():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined)])
+    identified_blocks = problem.identify_full_blocks()
+    assert(identified_blocks == [])
+
+def test_problem_object_contains_list_of_value_index_rule_element_index():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    assert((problem.cells[0].rule_element_index == 0))
+
+def test_get_rule_element_indexes_from_cells_in_problem_returns_none_if_no_cell_full():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.get_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None]))
+
+def test_get_rule_element_indexes_from_cells_in_problem_returns_none_if_empty_cell():
+    problem = Problem(rule = Rule([]), cells = [Cell(CellState.empty)])
+    identified_rule_element_indexes = problem.get_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None]))
+
+def test_get_rule_element_indexes_from_cells_in_problem_returns_0_0_none_none():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.get_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0,0,None,None]))
+
+def test_identify_rule_element_indexes_for_problem_with_len_one_and_one_full_cell():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0]))
+
+def test_identify_rule_element_indexes_for_problem_with_len_two_and_two_full_cells():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0,0]))
+
+def test_identify_rule_element_indexes_for_problem_with_len_one_and_one_undefined_cell_returns_list_with_none():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None]))
+
+def test_identify_rule_element_indexes_for_problem_with_len_5_and_one_rule_element_value_3_gets_identified():
+    problem = Problem(rule = Rule([3]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,0,0,0,None]))
+
+def test_identify_rule_element_indexes_for_solved_problem_with_len_5_and_rule_2_1():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.empty)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0,0,None,1,None]))
+
+def test_identify_rule_element_if_block_is_at_left_extremity_of_line():
+    problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0,0,None,None,None]))
+
+def test_identify_rule_element_if_block_is_at_right_extremity_of_line():
+    problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.full)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    print(problem.last_undefined_cell_index())
+    assert((identified_rule_element_indexes == [None,None,None,1,1]))
+
+def test_first_undefined_cell_index_of_problem_with_undefined_is_0():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])
+    first_undefined_cell_index = problem.first_undefined_cell_index()
+    assert((first_undefined_cell_index == 0))
+
+def test_first_undefined_cell_index_of_problem_with_full_is_none():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    first_undefined_cell_index = problem.first_undefined_cell_index()
+    assert((first_undefined_cell_index == None))
+
+def test_first_undefined_cell_index_of_problem_with_full_then_undefined_is_1():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    first_undefined_cell_index = problem.first_undefined_cell_index()
+    assert((first_undefined_cell_index == 2))
+
+def test_last_undefined_cell_index_of_problem_with_undefined_is_0():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])
+    first_undefined_cell_index = problem.last_undefined_cell_index()
+    assert((first_undefined_cell_index == 0)) 
+
+def test_last_undefined_cell_index_of_problem_with_full_is_none():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    first_undefined_cell_index = problem.last_undefined_cell_index()
+    assert((first_undefined_cell_index == None))
+
+def test_last_undefined_cell_index_of_problem_with_full_then_undefined_is_1():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full)])
+    first_undefined_cell_index = problem.last_undefined_cell_index()
+    assert((first_undefined_cell_index == 0))
+
+def test_identify_rule_element_if_block_at_left_extremity_with_one_empty_at_left():
+    problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,0,0,None,None]))
+
+def test_identify_rule_element_if_two_full_blocks_at_left_extremity_returns_index_0_and_1_rule_element():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [0,None,1,None,None]))
+
+def test_identify_rule_element_if_block_at_right_extremity_with_one_empty_at_right():
+    problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.full),Cell(CellState.empty)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,None,1,1,None]))
+
+def test_identify_rule_element_if_two_full_blocks_at_right_extremity_returns_index_0_and_1_rule_element():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,0,None,1]))
+
+@pytest.mark.skip()
 def test_assess_cell_rule_element_position_for_problem_with_len_1_and_1_full_cell():
-    problem = Problem(rule = Rule([1]), cells = [Cell(FullCellState())])
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
     list_of_rule_element_indexes = problem.assess_cell_rule_correspondance()
     assert(list_of_rule_element_indexes == [0])
 
+@pytest.mark.skip()
 def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_first_cell_empty_is_zero():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(EmptyCellState()), Cell(), Cell(), Cell()])
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.empty), Cell(), Cell(), Cell()])
     nb_freedom_degrees = problem.compute_number_of_freedom_degrees()
     assert(nb_freedom_degrees == 0)
 
+@pytest.mark.skip()
 def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_last_cell_empty_is_zero():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell(), Cell(EmptyCellState())])
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell(), Cell(CellState.empty)])
     nb_freedom_degrees = problem.compute_number_of_freedom_degrees()
     assert(nb_freedom_degrees == 0)
 
+@pytest.mark.skip()
 def test_compute_number_of_freedom_degrees_of_rule_with_1_1_and_len_4_and_second_cell_empty_is_1():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(EmptyCellState()), Cell(), Cell()])
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(CellState.empty), Cell(), Cell()])
     nb_freedom_degrees = problem.compute_number_of_freedom_degrees()
     assert(nb_freedom_degrees == 0)
 
+@pytest.mark.skip()
 def test_overlap_problem_solving_returns_partially_or_totally_solved_problem():
     assert(True == False)
 
+@pytest.mark.skip()
 def test_solving_problem_returns_list_of_modified_indexes():
     assert(True == False)

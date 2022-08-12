@@ -1,59 +1,41 @@
 from scipy import *
 import numpy as np
 import pandas as pd
+from enum import Enum
 
-class CellState:
-
-    def __init__(self, value = None):
-        self.value = value
-
-    def __eq__(self, other):
-        if isinstance(other, CellState):
-            return self.value == other.value
-        else:
-            return False
-
-class UndefinedCellState(CellState):
-    def __init__(self, value = "undefined"):
-        super().__init__(value)
-
-class FullCellState(CellState):
-    def __init__(self, value = "full"):
-        super().__init__(value)
-
-class EmptyCellState(CellState):
-    def __init__(self, value = "empty"):
-        super().__init__(value)
+class CellState(Enum):
+    empty = 0
+    undefined = -1
+    full = 1
 
 class InvalidCellStateModification(Exception):
     pass
 
 class Cell:
     
-    def __init__(self, cell_state = UndefinedCellState()):
+    def __init__(self, cell_state = CellState.undefined,rule_element_index = None):
         self.cell_state = cell_state
-    
+        if self.cell_state == CellState.full:
+            self.rule_element_index = rule_element_index
+        else:
+            self.rule_element_index = None
+
     def empty(self):
-        if self.cell_state != UndefinedCellState():
+        if self.cell_state != CellState.undefined:
             raise InvalidCellStateModification("impossible to modify not undefined cell state")
-        self.cell_state = EmptyCellState()
+        self.cell_state = CellState.empty
     
     def full(self):
-        if self.cell_state != UndefinedCellState():
+        if self.cell_state != CellState.undefined:
             raise InvalidCellStateModification("impossible to modify not undefined cell state")
-        self.cell_state = FullCellState()
+        self.cell_state = CellState.full
     
     def numerize(self):
-        if self.cell_state == UndefinedCellState():
-            return None
-        if self.cell_state == EmptyCellState():
-            return 0
-        if self.cell_state == FullCellState():
-            return 1
+        return self.cell_state.value
     
     def __eq__(self, other):
         if isinstance(other, Cell):
-            return self.cell_state == other.cell_state
+            return (self.cell_state == other.cell_state) & (self.rule_element_index == other.rule_element_index)
         else:
             return False
 
@@ -155,6 +137,20 @@ class Logimage:
         if self.is_rule_number_exceeding_grid_size():
             raise InvalidRule("Number of rules exceeding grid size")
 
+class Solution:
+    pass
+
+class FullBlock:
+    
+    def __init__(self, block_len, initial_index):
+        self.block_len = block_len
+        self.initial_index = initial_index
+        self.last_index = self.initial_index + self.block_len
+    
+    def __eq__(self, other):
+        if isinstance(other, FullBlock):
+            return (self.block_len == other.block_len) & (self.initial_index == other.initial_index) & (self.last_index == other.last_index)
+
 class Problem:
 
     def __init__(self, rule, cells):
@@ -198,26 +194,86 @@ class Problem:
             return []
         first_zero_index = Problem.find_first_index_of_value(input_numerized_series,0)
         if Problem.find_first_index_of_value(input_numerized_series,0) is None:
-            print("pas de zero")
             return [input_numerized_series]
         else:
             if input_numerized_series.iloc[0] == 0:
-                print("zéro au début")
                 first_non_zero_index = Problem.find_first_index_of_non_value(input_numerized_series,0)
                 return Problem.find_series_without_value_zero(input_numerized_series[input_numerized_series.index >= first_non_zero_index])
             else:
-                print("zero pas au début")
-                return [input_numerized_series[input_numerized_series.index < first_zero_index]] + Problem.find_series_without_value_zero(input_numerized_series[input_numerized_series.index >= first_zero_index])
-                
+                result_serie = input_numerized_series[input_numerized_series.index < first_zero_index]
+                return [result_serie] + Problem.find_series_without_value_zero(input_numerized_series[input_numerized_series.index >= first_zero_index])
 
-    def identify_full_rules(self):
-        list_of_identified_rules = []
+    def first_undefined_cell_index(self):
+        numerized_series = pd.Series(self.numerized_list)
+        first_undefined_index = Problem.find_first_index_of_value(numerized_series, -1)
+        return first_undefined_index
+    
+    def last_undefined_cell_index(self):
+        reversed_numerized_series = pd.Series(self.numerized_list[::-1])
+        first_reversed_undefined_index = Problem.find_first_index_of_value(reversed_numerized_series, -1)
+        max_index = len(self.numerized_list) -1
+        if first_reversed_undefined_index is None:
+            return None
+        else:
+            last_undefined_index = max_index - first_reversed_undefined_index
+            return last_undefined_index
+             
+    def identify_full_blocks(self):
+        list_of_identified_full_blocks = []
         numerized_list_series = pd.Series(self.numerized_list)
         list_of_non_zero_series = Problem.find_series_without_value_zero(numerized_list_series)
         for non_zero_serie in list_of_non_zero_series:
-            if Problem.find_first_index_of_value(non_zero_serie,None) is None:
-                list_of_identified_rules.append({"len":len(non_zero_serie),"initial_index":non_zero_serie.index[0]})
-        return list_of_identified_rules
+            if Problem.find_first_index_of_value(non_zero_serie,-1) is None:
+                #list_of_identified_full_blocks.append({"len":len(non_zero_serie),"initial_index":non_zero_serie.index[0]})
+                list_of_identified_full_blocks.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
+        return list_of_identified_full_blocks
+
+    def get_rule_element_indexes(self):
+        rule_element_indexes = [cell.rule_element_index for cell in self.cells]
+        return rule_element_indexes
+
+    @staticmethod
+    def assign_value_to_index_range_in_list(input_list,first_index,last_index,value):
+        output_list = input_list.copy()
+        output_list[first_index:last_index] = [value] * (last_index - first_index)
+        return output_list
+
+    @staticmethod
+    def get_full_block_infos(full_block):
+        block_len = full_block["len"]
+        block_initial_index = full_block["initial_index"]
+        block_last_index = block_initial_index + block_len
+        return block_len, block_initial_index, block_last_index
+
+    def assign_rule_elements_index_when_end_of_cells_list_is_solved(self, rule_element_indexes, list_of_identified_full_blocks, block_index, full_block):
+        max_possible_rule_element_index = len(self.rule) - 1
+        indexes_left_until_last_block = len(list_of_identified_full_blocks) - 1 - block_index
+        deducted_rule_element_index = max_possible_rule_element_index - indexes_left_until_last_block
+        rule_element_indexes_output = Problem.assign_value_to_index_range_in_list(rule_element_indexes,\
+            full_block.initial_index, full_block.last_index, deducted_rule_element_index)
+        return rule_element_indexes_output
+
+    def identify_rule_element_indexes(self):
+        rule_element_indexes = self.get_rule_element_indexes()
+        list_of_identified_full_blocks = self.identify_full_blocks()
+        first_undefined_cell_index = self.first_undefined_cell_index()
+        last_undefined_cell_index = self.last_undefined_cell_index()
+        for block_index, full_block in enumerate(list_of_identified_full_blocks):
+            if first_undefined_cell_index is not None:
+                if full_block.last_index < first_undefined_cell_index:
+                    rule_element_indexes = Problem.assign_value_to_index_range_in_list(rule_element_indexes,\
+                        full_block.initial_index, full_block.last_index, block_index)
+                    continue
+            if last_undefined_cell_index is not None:
+                if full_block.initial_index > last_undefined_cell_index:
+                    rule_element_indexes = self.assign_rule_elements_index_when_end_of_cells_list_is_solved(rule_element_indexes, list_of_identified_full_blocks, block_index, full_block)
+                    continue
+            fitting_len_rule_elements = [rule_element for rule_element in self.rule if rule_element == full_block.block_len]
+            if len(fitting_len_rule_elements) == 1:
+                fitting_rule_element_index = self.rule.index(full_block.block_len)
+                rule_element_indexes = Problem.assign_value_to_index_range_in_list(rule_element_indexes,\
+                    full_block.initial_index, full_block.last_index, fitting_rule_element_index)
+        return rule_element_indexes
     
     def compute_number_of_freedom_degrees(self):
         minimum_len_from_rule = self.rule.compute_min_possible_len()
