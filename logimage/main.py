@@ -207,16 +207,77 @@ class Problem:
         self.length = len(self.cells)
         self.rule_elements_indexes = self.get_rule_element_indexes()
     
+    def __repr__(self):
+        numerized_list = self.numerize_cell_list()
+        rule_element_indexes = [cell.rule_element_index for cell in self.cells]
+        return f"Problem : rule : {self.rule}, cells : {numerized_list}, clues_indexes : {rule_element_indexes}"
+
+    @staticmethod
+    def increment_rule_element_indexes_in_cells_list(cells_list, increment_value):
+        incremented_cells_list = [Cell(CellState.full,rule_element_index=cell.rule_element_index + increment_value) if (cell.cell_state == CellState.full) & (cell.rule_element_index is not None) else cell for cell in cells_list]
+        return incremented_cells_list
+
     def __add__(self,other):
         if (self.cells[-1] != Cell(CellState.empty)) & (other.cells[0] != Cell(CellState.empty)):
             raise ProblemAddError("Impossible to combine two problem without at least one empty cell at junction")
         combined_rule = self.rule + other.rule
-        combined_cells_list = self.cells + other.cells
+        rule_element_index_increment = len(self.rule)
+        added_cells = Problem.increment_rule_element_indexes_in_cells_list(other.cells,rule_element_index_increment)
+        combined_cells_list = self.cells + added_cells
         return Problem(rule = combined_rule, cells = combined_cells_list)
 
     def __eq__(self,other):
         if isinstance(other,Problem):
             return (self.rule == other.rule) & (self.cells == other.cells)
+
+    def is_splittable(self):
+        if (self.cells[0].cell_state == CellState.empty) or (self.cells[-1].cell_state == CellState.empty):
+            return True
+        first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
+        if first_complete_full_block_with_rule_element_index is None:
+            return False
+        else:
+            return True
+
+    def get_first_complete_full_block_with_rule_element_index(self):
+        complete_full_blocks = self.identify_complete_full_blocks()
+        sorted_complete_full_blocks = sorted(complete_full_blocks, key=lambda d: d.initial_index)
+        for full_block in sorted_complete_full_blocks:
+            rule_element_index_none_list = [cell.rule_element_index is None for cell in self.cells[full_block.initial_index:full_block.last_index - 1]]
+            if any(rule_element_index_none_list):
+                continue
+            else:
+                return full_block
+
+    def get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(self,cells_split_index,rule_split_index):
+        first_part_problem = Problem(rule=self.rule[0:rule_split_index],cells = self.cells[0:cells_split_index])
+        second_part_cells = Problem.increment_rule_element_indexes_in_cells_list(self.cells[cells_split_index:],-rule_split_index)
+        second_part_problem = Problem(rule=self.rule[rule_split_index:],cells = second_part_cells)
+        return first_part_problem, second_part_problem
+
+    def split(self):
+        if self.cells[0].cell_state == CellState.empty:
+            numerized_series_list = pd.Series(self.numerize_cell_list())
+            first_non_empty_index = Problem.find_first_index_of_non_value(numerized_series_list,0)
+            first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_non_empty_index,0)
+            #first_part_problem = Problem(rule = [],cells=self.cells[0:first_non_empty_index])
+            #second_part_problem = Problem(rule = self.rule,cells=self.cells[first_non_empty_index:])
+        elif self.cells[-1].cell_state == CellState.empty:
+            reversed_numerized_series_list = pd.Series(self.numerize_cell_list()[::-1])
+            reversed_first_non_empty_index = Problem.find_first_index_of_non_value(reversed_numerized_series_list,0)
+            first_ending_empty_index = self.length - reversed_first_non_empty_index
+            first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_ending_empty_index,len(self.rule)) 
+            # first_part_problem = Problem(rule = self.rule,cells=self.cells[0:first_ending_empty_index])
+            # second_part_problem = Problem(rule = [],cells=self.cells[first_ending_empty_index:])
+        else:
+            first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
+            if first_complete_full_block_with_rule_element_index.initial_index == 0:
+                first_index_after_empty_index = first_complete_full_block_with_rule_element_index.block_len + 1
+                first_part_problem = Problem(rule=self.rule[0:1],cells = self.cells[0:first_index_after_empty_index])
+                second_part_cells = Problem.increment_rule_element_indexes_in_cells_list(self.cells[first_index_after_empty_index:],-len(self[0]))
+                second_part_problem = Problem(rule=self.rule[1:],cells = second_part_cells)
+        return [first_part_problem,second_part_problem]
+            
 
     def numerize_cell_list(self, cells_list = None):
         if cells_list == None:
