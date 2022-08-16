@@ -231,13 +231,20 @@ class Problem:
             return (self.rule == other.rule) & (self.cells == other.cells)
 
     def is_splittable(self):
-        if (self.cells[0].cell_state == CellState.empty) or (self.cells[-1].cell_state == CellState.empty):
-            return True
-        first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
-        if first_complete_full_block_with_rule_element_index is None:
+        if self.length == 1:
             return False
-        else:
+        elif self.rule == []:
+            return False
+        elif len([cell for cell in self.cells if cell.cell_state == CellState.full]) == self.length:
+            return False
+        elif (self.cells[0].cell_state == CellState.empty) or (self.cells[-1].cell_state == CellState.empty):
             return True
+        else:
+            first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
+            if first_complete_full_block_with_rule_element_index is None:
+                return False
+            else:
+                return True
 
     def get_first_complete_full_block_with_rule_element_index(self):
         complete_full_blocks = self.identify_complete_full_blocks()
@@ -463,19 +470,33 @@ class Problem:
             return True
         return False
     
+    # def update_cells_list(self, new_cell_lists):
+    #     for index, cell in enumerate(self.cells):
+    #         if new_cell_lists[index].cell_state == CellState.undefined:
+    #             continue
+    #         if new_cell_lists[index].cell_state != cell.cell_state:
+    #             if cell.cell_state != CellState.undefined:
+    #                 raise InvalidProblem("unable to update non undefined cell")
+    #             self.cells[index] = Cell(new_cell_lists[index].cell_state)
+    #             if new_cell_lists[index].rule_element_index is not None:
+    #                 self.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+    #         elif new_cell_lists[index].rule_element_index is not None:
+    #             self.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+    
     def update_cells_list(self, new_cell_lists):
-        for index, cell in enumerate(self.cells):
+        output_problem = copy.deepcopy(self)
+        for index, cell in enumerate(output_problem.cells):
             if new_cell_lists[index].cell_state == CellState.undefined:
                 continue
             if new_cell_lists[index].cell_state != cell.cell_state:
                 if cell.cell_state != CellState.undefined:
                     raise InvalidProblem("unable to update non undefined cell")
-                #self.cells[index].update_state(new_cell_lists[index].cell_state)
-                self.cells[index] = Cell(new_cell_lists[index].cell_state)
+                output_problem.cells[index] = Cell(new_cell_lists[index].cell_state)
                 if new_cell_lists[index].rule_element_index is not None:
-                    self.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+                    output_problem.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
             elif new_cell_lists[index].rule_element_index is not None:
-                self.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+                output_problem.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+        return output_problem
 
     def fully_defined_solve(self):
         new_cells_list = []
@@ -486,7 +507,8 @@ class Problem:
             index += 1
         last_rule_element = self.rule[index]
         new_cells_list += last_rule_element.translate_to_list()
-        self.update_cells_list(new_cells_list)
+        solved_problem = self.update_cells_list(new_cells_list)
+        return solved_problem
     
     def is_subject_to_overlap_solving(self):
         freedom_degrees_number = self.compute_number_of_freedom_degrees()
@@ -506,18 +528,21 @@ class Problem:
                 min_end_index = min_start_index + rule_element
                 len_overlapping = min_end_index - max_start_index
                 output_cells_list[max_start_index:min_end_index] = [Cell(CellState.full,rule_element_index=index)] * len_overlapping
-        self.update_cells_list(output_cells_list)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
     
     def all_full_cell_found(self):
         full_cells_number = len([cell for cell in self.cells if cell.cell_state == CellState.full])
         return full_cells_number == sum(self.rule)
     
     def all_full_cell_found_solve(self):
-        output_cells_list = self.cells
+        output_cells_list = copy.deepcopy(self.cells)
         for index in range(0,self.length):
             if output_cells_list[index].cell_state == CellState.undefined:
-                output_cells_list[index].empty()
-        self.update_cells_list(output_cells_list)
+                output_cells_list[index] = Cell(CellState.empty)
+        solved_problem = self.update_cells_list(output_cells_list)
+        solved_problem.identify_and_update_rule_element_indexes()
+        return solved_problem
 
     def index_strict_upper_born_to_fill_with_empty(self,cell_list = None, rule = None, first_rule_element_index = None):
         if cell_list == None:
@@ -560,23 +585,27 @@ class Problem:
 
     def head_fill_empty_solve(self):
         last_index_to_fill_with_empty = self.index_strict_upper_born_to_fill_with_empty()
-        output_cells_list = self.cells
+        output_cells_list = copy.deepcopy(self.cells)
         for index in range(0,last_index_to_fill_with_empty):
             if output_cells_list[index].cell_state == CellState.undefined:
                 output_cells_list[index].empty()
-        self.update_cells_list(output_cells_list)
+        solved_problem = Problem(self.rule, output_cells_list)
+        return solved_problem
 
     def tail_fill_empty_solve(self):
         first_index_to_fill_with_empty = self.index_strict_lower_born_to_fill_with_empty()
         output_cells_list = copy.deepcopy(self.cells)
         for index in range(first_index_to_fill_with_empty + 1,self.length):
             if output_cells_list[index].cell_state == CellState.undefined:
-                output_cells_list[index].empty()
-        self.update_cells_list(output_cells_list)
+                output_cells_list[index] = Cell(CellState.empty)
+        solved_problem = Problem(self.rule, output_cells_list)
+        return solved_problem
     
     def extremities_fill_empty_solve(self):
-        self.head_fill_empty_solve()
-        self.tail_fill_empty_solve()
+        output_problem = copy.deepcopy(self)
+        output_problem = output_problem.head_fill_empty_solve()
+        output_problem = output_problem.tail_fill_empty_solve()
+        return output_problem
 
     def complete_full_blocks_with_max_rule_size_solve(self):
         incomplete_full_blocks = self.identify_incomplete_full_blocks()
@@ -586,13 +615,14 @@ class Problem:
         for full_block in completable_full_blocks:
             first_index_after_block = full_block.initial_index + full_block.block_len
             if full_block.initial_index == 0:
-                output_cells_list[first_index_after_block].empty()
+                output_cells_list[first_index_after_block] = Cell(CellState.empty)
             elif first_index_after_block == self.length:
-                output_cells_list[full_block.initial_index - 1].empty()
+                output_cells_list[full_block.initial_index - 1] = Cell(CellState.empty)
             else:
-                output_cells_list[first_index_after_block].empty()
-                output_cells_list[full_block.initial_index - 1].empty()
-        self.update_cells_list(output_cells_list)
+                output_cells_list[first_index_after_block] = Cell(CellState.empty)
+                output_cells_list[full_block.initial_index - 1] = Cell(CellState.empty)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
     
     @staticmethod
     def all_undefined_to_full_in_range(cells_list,range_min, range_max, rule_element_index = None):
@@ -611,7 +641,7 @@ class Problem:
             if full_block.initial_index == 0:
                 index_after_full_block = full_block.block_len
                 if output_cells_list[index_after_full_block].cell_state == CellState.undefined:
-                    output_cells_list[index_after_full_block].empty()
+                    output_cells_list[index_after_full_block] = Cell(CellState.empty)
         return output_cells_list
     
     def fill_tail_of_cell_list_based_on_last_rule(self, cells_list,rule, full_block):
@@ -628,7 +658,7 @@ class Problem:
         output_cells_list = copy.deepcopy(self.cells)
         incomplete_full_blocks = self.identify_incomplete_full_blocks()
         if len(incomplete_full_blocks) == 0:
-            return
+            return self
         for full_block in incomplete_full_blocks:
             if full_block.initial_index < self.rule[0]:
                 output_cells_list = self.fill_head_of_cell_list_based_on_first_rule(output_cells_list,rule = self.rule,full_block = full_block)
@@ -636,35 +666,43 @@ class Problem:
             max_possible_block_start_index = self.length - self.rule[-1]
             if full_block_max_index >= max_possible_block_start_index:
                 output_cells_list = self.fill_tail_of_cell_list_based_on_last_rule(output_cells_list,rule = self.rule,full_block = full_block)
-        self.update_cells_list(output_cells_list)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
 
+    @staticmethod
+    def get_splitted_problem(problem):
+        print(problem)
+        if problem.is_splittable():
+            print("True")
+            problem_splitted = problem.split()
+            print(problem_splitted)
+            return Problem.get_splitted_problem(problem_splitted[0]) + Problem.get_splitted_problem(problem_splitted[1])
+        else:
+            return [problem]
+    
     def solve(self):
         base_problem = copy.deepcopy(self)
-        self.identify_and_update_rule_element_indexes()
-        if self.is_solved():
-            return
-        elif self.is_line_fully_defined_by_rule():
-            self.fully_defined_solve()
-        elif self.all_full_cell_found():
-            self.all_full_cell_found_solve()
-        elif self.is_splittable():
-            splitted_problem = self.split()
-            print(splitted_problem[0])
-            print(splitted_problem[1])
-            first_solved_problem = splitted_problem[0]
-            first_solved_problem.solve()
-            print(first_solved_problem)
-            second_solved_problem = splitted_problem[1]
-            second_solved_problem.solve()
-            print(second_solved_problem)
-            self = first_solved_problem + second_solved_problem
+        output_problem = copy.deepcopy(self)
+        output_problem.identify_and_update_rule_element_indexes()
+        if output_problem.is_splittable():
+            splitted_problem = output_problem.split()
+            first_problem = splitted_problem[0]
+            second_problem = splitted_problem[1]
+            return first_problem.solve() + second_problem.solve()
         else:
-            if self.is_subject_to_overlap_solving():
-                self.overlapping_solve()
-            self.complete_full_blocks_with_max_rule_size_solve()
-            self.extremities_fill_empty_solve()
-            self.complete_extremities_full_block_solve()
-        if self == base_problem:
-            return
-        else:
-            self.solve()
+            if output_problem.is_solved():
+                return output_problem
+            elif output_problem.is_line_fully_defined_by_rule():
+                output_problem = output_problem.fully_defined_solve()
+            elif output_problem.all_full_cell_found():
+                output_problem = output_problem.all_full_cell_found_solve()
+            else:
+                if output_problem.is_subject_to_overlap_solving():
+                    output_problem = output_problem.overlapping_solve()
+                output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
+                output_problem = output_problem.extremities_fill_empty_solve()
+                output_problem = output_problem.complete_extremities_full_block_solve()
+            if output_problem == base_problem:
+                return output_problem
+            else:
+                return output_problem.solve()

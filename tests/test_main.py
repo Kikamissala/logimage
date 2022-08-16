@@ -224,14 +224,14 @@ def test_problem_with_fully_defined_line_by_rule_returns_true_when_function_call
 def test_updating_cells_list_with_new_states_changes_cells_list():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
     new_cells_list = [Cell(CellState.full), Cell(), Cell()]
-    problem.update_cells_list(new_cells_list)
-    assert(problem.cells == new_cells_list)
+    updated_problem = problem.update_cells_list(new_cells_list)
+    assert(updated_problem.cells == new_cells_list)
 
 def test_updating_cells_list_with_new_rule_element_index_sets_new_rule_element_index():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(), Cell()])
     new_cells_list = [Cell(CellState.full,rule_element_index=0), Cell(), Cell()]
-    problem.update_cells_list(new_cells_list)
-    assert(problem.cells == new_cells_list)
+    updated_problem = problem.update_cells_list(new_cells_list)
+    assert(updated_problem.cells == new_cells_list)
 
 def test_updating_cells_list_with_new_cell_none_keeps_previous_cell():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(), Cell()])
@@ -242,13 +242,13 @@ def test_updating_cells_list_with_new_cell_none_keeps_previous_cell():
 
 def test_solving_complete_problem_from_all_undefined_returns_fully_defined_list():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
-    problem.fully_defined_solve()
-    assert((problem.is_solved() == True) & (problem.numerize_cell_list() == [1,0,1]))
+    solved_problem = problem.fully_defined_solve()
+    assert((solved_problem.is_solved() == True) & (solved_problem.numerize_cell_list() == [1,0,1]))
 
 def test_solving_complete_problem_with_len_4_and_rule_2_1_returns_numerized_list_with_1_1_0_1():
     problem = Problem(rule = Rule([2,1]), cells = [Cell(), Cell(), Cell(), Cell()])
-    problem.fully_defined_solve()
-    assert((problem.is_solved() == True) & (problem.numerize_cell_list() == [1,1,0,1]))
+    solved_problem = problem.fully_defined_solve()
+    assert((solved_problem.is_solved() == True) & (solved_problem.numerize_cell_list() == [1,1,0,1]))
 
 def test_compute_number_of_freedom_degrees_of_fully_defined_rule_is_zero():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
@@ -568,21 +568,21 @@ def test_min_starting_index_of_rule_1_2_1_is_0_2_5():
 
 def test_overlapping_solving_for_rule_2_and_len_3_has_middle_element_full_with_rule_element_index_0():
     problem = Problem(rule = Rule([2]), cells = [Cell(),Cell(),Cell()])
-    problem.overlapping_solve()
+    solved_problem = problem.overlapping_solve()
     expected_cells_list = [Cell(),Cell(CellState.full, rule_element_index=0),Cell()]
-    assert(problem.cells == expected_cells_list)
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_problem_subject_to_overlap_solving_for_rule_2_1_and_len_5_has_second_element_full_and_rule_element_index_0():
     problem = Problem(rule = Rule([2,1]), cells = [Cell(),Cell(),Cell(),Cell(),Cell()])
-    problem.overlapping_solve()
+    solved_problem = problem.overlapping_solve()
     expected_cells_list = [Cell(),Cell(CellState.full, rule_element_index=0),Cell(),Cell(),Cell()]
-    assert(problem.cells == expected_cells_list)
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_problem_subject_to_overlap_solving_for_rule_1_2_and_len_5_has_second_to_last_element_full_and_rule_element_index_0():
     problem = Problem(rule = Rule([1,2]), cells = [Cell(),Cell(),Cell(),Cell(),Cell()])
-    problem.overlapping_solve()
+    solved_problem = problem.overlapping_solve()
     expected_cells_list = [Cell(),Cell(),Cell(),Cell(CellState.full, rule_element_index=1),Cell()]
-    assert(problem.cells == expected_cells_list)
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_problem_all_full_cell_found_of_solved_problem_is_true():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
@@ -601,15 +601,15 @@ def test_problem_all_full_cell_found_of_problem_with_rule_2_1_and_two_full_cell_
 
 def test_all_full_cell_found_solve_fills_undefined_cells():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(),Cell()])
-    problem.all_full_cell_found_solve()
-    expected_cells_list = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.empty)]
-    assert(problem.cells == expected_cells_list)
+    solved_problem = problem.all_full_cell_found_solve()
+    expected_cells_list = [Cell(CellState.full,rule_element_index=0), Cell(CellState.full,rule_element_index=0), Cell(CellState.empty),Cell(CellState.empty)]
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_all_full_cell_found_solve_fills_undefined_cells_in_2_1_rule_problem():
-    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(),Cell(CellState.full)])
-    problem.all_full_cell_found_solve()
-    expected_cells_list = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.full)]
-    assert(problem.cells == expected_cells_list)
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(),Cell(CellState.full),Cell(CellState.undefined)])
+    solved_problem = problem.all_full_cell_found_solve()
+    expected_cells_list = [Cell(CellState.full,rule_element_index=0), Cell(CellState.full,rule_element_index=0), Cell(CellState.empty),Cell(CellState.full,rule_element_index=1), Cell(CellState.empty)]
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_index_strict_upper_born_to_fill_with_empty_of_problem_with_first_cell_undefined_then_empty_and_first_rule_element_2_is_1():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined), Cell(CellState.empty), Cell(CellState.full),Cell()])
@@ -653,9 +653,9 @@ def test_index_strict_upper_born_to_fill_with_empty_of_problem_with_first_full_r
 
 def test_head_fill_empty_solve_with_first_cell_undefined_then_empty_and_first_rule_element_2_updates_problem():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined), Cell(CellState.empty), Cell(CellState.full),Cell()])
-    problem.head_fill_empty_solve()
+    solved_problem = problem.head_fill_empty_solve()
     expected_cells_list = [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.full),Cell()]
-    assert(problem.cells == expected_cells_list)
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_index_strict_lower_born_to_fill_with_empty_of_problem_with_last_cell_undefined_then_empty_and_last_rule_element_2_is_2():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.undefined)])
@@ -674,9 +674,9 @@ def test_index_strict_lower_born_to_fill_with_empty_of_problem_with_last_full_ru
 
 def test_tail_fill_empty_solve_with_last_cell_undefined_then_empty_and_last_rule_element_2_updates_problem():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.undefined)])
-    problem.tail_fill_empty_solve()
+    solved_problem = problem.tail_fill_empty_solve()
     expected_cells_list = [Cell(CellState.undefined), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.empty)]
-    assert(problem.cells == expected_cells_list)
+    assert(solved_problem.cells == expected_cells_list)
 
 def test_get_incomplete_full_blocks_from_problem_with_one_full_returns_empty_list():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
@@ -710,21 +710,21 @@ def test_get_incomplete_full_blocks_from_problem_with_2_full_blocks_of_len_1_sep
 
 def test_complete_full_blocks_with_max_rule_size_solve_of_problem_with_rule_1_and_1_full_between_2_undefined():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined)])
-    problem.complete_full_blocks_with_max_rule_size_solve()
+    solved_problem = problem.complete_full_blocks_with_max_rule_size_solve()
     expected_cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.empty)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_with_max_rule_size_solve_of_problem_with_rule_1_and_1_full_then_1_undefined():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full),Cell(CellState.undefined)])
-    problem.complete_full_blocks_with_max_rule_size_solve()
+    solved_problem = problem.complete_full_blocks_with_max_rule_size_solve()
     expected_cells = [Cell(CellState.full),Cell(CellState.empty)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_with_max_rule_size_solve_of_problem_with_rule_1_and_1_undefined_then_1_full():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.full)])
-    problem.complete_full_blocks_with_max_rule_size_solve()
+    solved_problem = problem.complete_full_blocks_with_max_rule_size_solve()
     expected_cells = [Cell(CellState.empty),Cell(CellState.full)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_with_max_rule_size_solve_of_problem_with_rule_2_and_full_block_size_less_no_update():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.full)])
@@ -734,63 +734,63 @@ def test_complete_full_blocks_with_max_rule_size_solve_of_problem_with_rule_2_an
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_1_and_full_then_undefined_complete_first_block():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full),Cell(CellState.undefined)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_2_and_full_then_undefined_complete_first_block():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.undefined)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_2_and_undefined_then_full_complete_first_cell_full():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.full)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_1_and_ndefined_then_full_complete_first_cell_empty():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.full)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_1_and_full_then_2_undefined_complete_second_block_empty():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_1_and_2_undefined_then_full_complete_second_cell_empty():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full,rule_element_index=0)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_complete_full_blocks_at_extremities_solve_with_rule_1_1_len_3_and_undefined_between_2_full_fills_with_empty():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.full)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_full_block_before_first_possible_end_index_fills_full_until_this_index():
     problem = Problem(rule = Rule([3]), cells = [Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_full_block_after_last_possible_first_index_fills_full_until_this_index():
     problem = Problem(rule = Rule([3]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_both_extremity_can_be_partially_filled_works():
     problem = Problem(rule = Rule([3,3]), cells = [Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined)])
-    problem.complete_extremities_full_block_solve()
+    solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)]
-    assert(problem.cells == expected_cells)
+    assert(solved_problem.cells == expected_cells)
 
 def test_solving_of_already_solved_problem_returns_problem():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0)])
@@ -799,58 +799,58 @@ def test_solving_of_already_solved_problem_returns_problem():
 
 def test_solving_of_already_solved_problem_without_rule_element_indexes_returns_indexes():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.full,rule_element_index=0)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.full,rule_element_index=0)])
 
 def test_solving_fully_defined_problem_solves_problem_and_updates_rule_element_indexes():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.full,rule_element_index=0)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.full,rule_element_index=0)])
 
 def test_solving_all_full_placed_fills_empty_and_updates_rule_element_index():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)])
 
 def test_simple_solving_overlapping_solve_updates_cells_and_rule_element_indexes():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined)])
 
 def test_complex_solving_overlapping_solve_updates_cells_and_rule_element_indexes():
     problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)])
 
 def test_complete_full_blocks_with_max_rule_size_solve():
     problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.empty)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.empty)])
 
 def test_complete_full_blocks_with_max_rule_size_solve_with_several_max_size_blocks():
     problem = Problem(rule = Rule([1,2,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.empty),Cell(CellState.full,rule_element_index=2),Cell(CellState.full,rule_element_index=2),Cell(CellState.empty)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.empty),Cell(CellState.full,rule_element_index=2),Cell(CellState.full,rule_element_index=2),Cell(CellState.empty)])
 
 def test_fill_extremities_with_empty_when_both_extremities_can_be_filled():
     problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.empty), Cell(CellState.undefined), Cell(CellState.empty)] + 7 * [Cell(CellState.undefined)] + [Cell(CellState.empty), Cell(CellState.undefined), Cell(CellState.empty)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty)] + 7 * [Cell(CellState.undefined)] + [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty)] + 7 * [Cell(CellState.undefined)] + [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty)])
 
 def test_fill_extremities_with_empty_when_first_full_element_has_rule_element_index_0_fills_everything_before():
     problem = Problem(rule = Rule([2,2]), cells = [Cell(CellState.undefined), Cell(CellState.undefined), Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)] + 4*[Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)] + 4*[Cell(CellState.undefined)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)] + 4*[Cell(CellState.undefined)])
 
 def test_fill_extremities_problem_updates_problem_and_rule_element_indexes():
     problem = Problem(rule = Rule([3,1]), cells = [Cell(CellState.undefined), Cell(CellState.full), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.undefined), Cell(CellState.full,rule_element_index=0), Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.undefined), Cell(CellState.full,rule_element_index=0), Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
 
 def test_solving_empty_rule_problem():
     problem = Problem(rule = Rule([]), cells = [Cell(CellState.undefined)])
-    problem.solve()
-    assert(problem.cells == [Cell(CellState.empty)])
+    solved_problem = problem.solve()
+    assert(solved_problem.cells == [Cell(CellState.empty)])
 
 # tests de solve général
 # identifier indexs si possible
@@ -911,6 +911,11 @@ def test_is_problem_splittable_with_empty_at_end_returns_true():
     bool_problem_splittable = problem.is_splittable()
     assert(bool_problem_splittable == True)
 
+def test_is_problem_splittable():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
+    bool_problem_splittable = problem.is_splittable()
+    assert(bool_problem_splittable == False)
+
 def test_split_problem_with_empty_at_start():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.empty),Cell(CellState.empty),Cell(CellState.undefined)])
     splitted_problem_list = problem.split()
@@ -960,9 +965,15 @@ def test_lol():
         Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])]
     assert(splitted_problem_list == expected_splitted_list)
 
+@pytest.mark.skip()
+def test_splitted_problem():
+    problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
+    splitted_problem  = Problem.get_splitted_problem(problem)
+    assert(splitted_problem == [])
+
 def test_solve_problem_with_split_needed_with_overlapping_in_second_part():
     problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-    problem.solve()
+    solved_problem = problem.solve()
     expected_problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)])
     print(expected_problem)
-    assert(problem == expected_problem)
+    assert(solved_problem == expected_problem)
