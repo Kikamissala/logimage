@@ -220,7 +220,7 @@ class Problem:
     def __add__(self,other):
         if (self.cells[-1] != Cell(CellState.empty)) & (other.cells[0] != Cell(CellState.empty)):
             raise ProblemAddError("Impossible to combine two problem without at least one empty cell at junction")
-        combined_rule = self.rule + other.rule
+        combined_rule = Rule(self.rule + other.rule)
         rule_element_index_increment = len(self.rule)
         added_cells = Problem.increment_rule_element_indexes_in_cells_list(other.cells,rule_element_index_increment)
         combined_cells_list = self.cells + added_cells
@@ -250,9 +250,9 @@ class Problem:
                 return full_block
 
     def get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(self,cells_split_index,rule_split_index):
-        first_part_problem = Problem(rule=self.rule[0:rule_split_index],cells = self.cells[0:cells_split_index])
+        first_part_problem = Problem(rule=Rule(self.rule[0:rule_split_index]),cells = self.cells[0:cells_split_index])
         second_part_cells = Problem.increment_rule_element_indexes_in_cells_list(self.cells[cells_split_index:],-rule_split_index)
-        second_part_problem = Problem(rule=self.rule[rule_split_index:],cells = second_part_cells)
+        second_part_problem = Problem(rule=Rule(self.rule[rule_split_index:]),cells = second_part_cells)
         return first_part_problem, second_part_problem
 
     def split(self):
@@ -260,22 +260,20 @@ class Problem:
             numerized_series_list = pd.Series(self.numerize_cell_list())
             first_non_empty_index = Problem.find_first_index_of_non_value(numerized_series_list,0)
             first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_non_empty_index,0)
-            #first_part_problem = Problem(rule = [],cells=self.cells[0:first_non_empty_index])
-            #second_part_problem = Problem(rule = self.rule,cells=self.cells[first_non_empty_index:])
         elif self.cells[-1].cell_state == CellState.empty:
             reversed_numerized_series_list = pd.Series(self.numerize_cell_list()[::-1])
             reversed_first_non_empty_index = Problem.find_first_index_of_non_value(reversed_numerized_series_list,0)
             first_ending_empty_index = self.length - reversed_first_non_empty_index
             first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_ending_empty_index,len(self.rule)) 
-            # first_part_problem = Problem(rule = self.rule,cells=self.cells[0:first_ending_empty_index])
-            # second_part_problem = Problem(rule = [],cells=self.cells[first_ending_empty_index:])
         else:
             first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
             if first_complete_full_block_with_rule_element_index.initial_index == 0:
                 first_index_after_empty_index = first_complete_full_block_with_rule_element_index.block_len + 1
-                first_part_problem = Problem(rule=self.rule[0:1],cells = self.cells[0:first_index_after_empty_index])
-                second_part_cells = Problem.increment_rule_element_indexes_in_cells_list(self.cells[first_index_after_empty_index:],-len(self[0]))
-                second_part_problem = Problem(rule=self.rule[1:],cells = second_part_cells)
+                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_index_after_empty_index,1)
+            else:
+                empty_cell_before_complete_block_index = first_complete_full_block_with_rule_element_index.initial_index - 1
+                rule_index = self.cells[first_complete_full_block_with_rule_element_index.initial_index].rule_element_index
+                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(empty_cell_before_complete_block_index,rule_index)
         return [first_part_problem,second_part_problem]
             
 
@@ -649,6 +647,17 @@ class Problem:
             self.fully_defined_solve()
         elif self.all_full_cell_found():
             self.all_full_cell_found_solve()
+        elif self.is_splittable():
+            splitted_problem = self.split()
+            print(splitted_problem[0])
+            print(splitted_problem[1])
+            first_solved_problem = splitted_problem[0]
+            first_solved_problem.solve()
+            print(first_solved_problem)
+            second_solved_problem = splitted_problem[1]
+            second_solved_problem.solve()
+            print(second_solved_problem)
+            self = first_solved_problem + second_solved_problem
         else:
             if self.is_subject_to_overlap_solving():
                 self.overlapping_solve()
