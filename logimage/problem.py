@@ -1,183 +1,9 @@
-from scipy import *
-import numpy as np
-import pandas as pd
-from enum import Enum
-import copy
+from logimage.cell import Cell, CellState
+from logimage.rule import Rule
 from collections import Counter
+import copy
 
-class CellState(Enum):
-    empty = 0
-    undefined = -1
-    full = 1
-
-class InvalidCellStateModification(Exception):
-    pass
-
-class CellUpdateError(Exception):
-    pass
-
-class Cell:
-    
-    def __init__(self, cell_state = CellState.undefined,rule_element_index = None):
-        self.cell_state = cell_state
-        if self.cell_state == CellState.full:
-            self.rule_element_index = rule_element_index
-        else:
-            self.rule_element_index = None
-
-    def empty(self,new_cell_state = CellState.empty):
-        if self.cell_state == CellState.empty:
-            return
-        elif self.cell_state != CellState.undefined:
-            raise InvalidCellStateModification("impossible to modify not undefined cell state")
-        self.cell_state = new_cell_state
-    
-    def full(self,rule_element_index = None):
-        if self.cell_state != CellState.undefined:
-            raise InvalidCellStateModification("impossible to modify not undefined cell state")
-        self.cell_state = CellState.full
-        if rule_element_index is not None:
-            self.set_rule_element_index(rule_element_index)
-    
-    def update_state(self,new_cell_state):
-        if isinstance(new_cell_state,CellState) is False:
-            raise InvalidCellStateModification("new value is not a cell state")
-        if self.cell_state != CellState.undefined:
-            raise InvalidCellStateModification("impossible to modify not undefined cell state")
-        if new_cell_state == CellState.empty:
-            self.empty()
-        elif new_cell_state == CellState.full:
-            self.full()
-
-    def set_rule_element_index(self,rule_element_index):
-        if self.cell_state != CellState.full:
-            raise CellUpdateError("unable to set rule element index for non full cell")
-        else:
-            self.rule_element_index = rule_element_index
-    
-    def numerize(self):
-        return self.cell_state.value
-    
-    def __eq__(self, other):
-        if isinstance(other, Cell):
-            return (self.cell_state == other.cell_state) & (self.rule_element_index == other.rule_element_index)
-        else:
-            return False
-    
-    def __repr__(self):
-        base_statement = f"Cell : state = {self.cell_state}"
-        if (self.cell_state == CellState.full) & (self.rule_element_index is not None):
-            return base_statement + f", rule_index = {self.rule_element_index}"
-        else:
-            return base_statement + f", rule_index undefined"
-
-class InvalidGridSet(Exception):
-    pass
-
-class Grid:
-    def __init__(self, row_number, column_number):
-        self.cells = np.array([[Cell() for j in range(0,column_number)] for i in range(0,row_number)])
-        self.row_number = row_number
-        self.column_number = column_number
-    
-    def __getitem__(self,pos):
-        row_index, column_index = pos
-        return self.cells[row_index][column_index]
-    
-    def __setitem__(self,pos, value):
-        row_index, column_index = pos
-        if isinstance(value,np.ndarray):
-            for item in value:
-                self.raise_if_not_cell(item)
-        else:    
-            self.raise_if_not_cell(value)
-        self.cells[row_index,column_index] = value
-
-    def empty(self, row_number,column_number):
-        self.cells[row_number,column_number].empty()
-
-    def full(self, row_number,column_number):
-        self.cells[row_number,column_number].full()
-
-    @staticmethod
-    def raise_if_not_cell(item):
-        if not isinstance(item, Cell):
-            raise InvalidGridSet(f"{item} is not a cell")
-
-class InvalidRule(Exception):
-    pass
-
-class RuleElement(int):
-
-    def translate_to_list(self):
-        return self * [Cell(CellState.full)]
-
-class Rule(list):
-
-    def __init__(self,values):
-        super().__init__([RuleElement(value) for value in values])
-
-    def compute_min_possible_len(self):
-        sum_of_cells_to_fill = sum(self)
-        minimum_number_of_blanks = len(self) - 1
-        min_possible_len = sum_of_cells_to_fill + minimum_number_of_blanks
-        return min_possible_len
-
-    def compute_min_starting_indexes(self):
-        if len(self) == 1:
-            return [0]
-        else:
-            start_index_of_index_2 = self[0] + 1
-            return [0] + list(map(lambda x: x + start_index_of_index_2, Rule(self[1:]).compute_min_starting_indexes()))
-
-class RuleList(list):
-    
-    def __init__(self,values):
-        super().__init__([Rule(value) for value in values])
-
-    def compute_maximum_minimum_possible_len(self):
-        maximum_minimum_possible_len = max([rule.compute_min_possible_len() for rule in self])
-        return maximum_minimum_possible_len
-
-class RuleSet:
-
-    def __init__(self, row_rules, column_rules):
-        self.row_rules = RuleList(row_rules)
-        self.column_rules = RuleList(column_rules)
-
-class Logimage:
-    
-    def __init__(self, grid_dimensions, rules):
-        self.grid = Grid(grid_dimensions[0], grid_dimensions[1])
-        self.rules = rules
-        self.raise_if_rules_invalid()
-
-    def is_rule_exceeding_grid_size(self):
-        maximum_minimum_possible_len_row = self.rules.column_rules.compute_maximum_minimum_possible_len()
-        maximum_minimum_possible_len_column = self.rules.row_rules.compute_maximum_minimum_possible_len()
-        if maximum_minimum_possible_len_row > self.grid.row_number:
-            return True
-        elif maximum_minimum_possible_len_column > self.grid.column_number:
-            return True
-        else:
-            return False
-    
-    def is_rule_number_exceeding_grid_size(self):
-        if len(self.rules.row_rules) > self.grid.row_number:
-            return True
-        elif len(self.rules.column_rules) > self.grid.column_number:
-            return True
-        else:
-            return False
-
-    def raise_if_rules_invalid(self):
-        if self.is_rule_exceeding_grid_size():
-            raise InvalidRule("A rule is exceeding grid size")
-        if self.is_rule_number_exceeding_grid_size():
-            raise InvalidRule("Number of rules exceeding grid size")
-
-class Solution:
-    pass
+import pandas as pd
 
 class FullBlock:
     
@@ -226,6 +52,12 @@ class Problem:
         combined_cells_list = self.cells + added_cells
         return Problem(rule = combined_rule, cells = combined_cells_list)
 
+    def __getitem__(self,index):
+        return self.cells[index]
+    
+    def __setitem__(self,index,value:Cell):
+        self.cells[index] = self.cells[index].modify(value)
+
     def __eq__(self,other):
         if isinstance(other,Problem):
             return (self.rule == other.rule) & (self.cells == other.cells)
@@ -235,7 +67,8 @@ class Problem:
             return False
         elif self.rule == []:
             return False
-        elif len([cell for cell in self.cells if cell.cell_state == CellState.full]) == self.length:
+        elif (len([cell for cell in self.cells if cell.cell_state == CellState.full]) == self.length) or \
+            (len([cell for cell in self.cells if cell.cell_state == CellState.empty]) == self.length):
             return False
         elif (self.cells[0].cell_state == CellState.empty) or (self.cells[-1].cell_state == CellState.empty):
             return True
@@ -484,6 +317,21 @@ class Problem:
             elif new_cell_lists[index].rule_element_index is not None:
                 output_problem.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
         return output_problem
+    
+    def update_cells_list_inplace(self, new_cell_lists):
+        output_cells = copy.deepcopy(self.cells)
+        for index, cell in enumerate(output_cells):
+            if new_cell_lists[index].cell_state == CellState.undefined:
+                continue
+            if new_cell_lists[index].cell_state != cell.cell_state:
+                if cell.cell_state != CellState.undefined:
+                    raise InvalidProblem("unable to update non undefined cell")
+                output_cells[index] = Cell(new_cell_lists[index].cell_state)
+                if new_cell_lists[index].rule_element_index is not None:
+                    output_cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+            elif new_cell_lists[index].rule_element_index is not None:
+                output_cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+        self.cells = output_cells
 
     def fully_defined_solve(self):
         new_cells_list = []
@@ -682,3 +530,33 @@ class Problem:
                 return output_problem
             else:
                 return output_problem.solve()
+    
+    def solve_inplace(self):
+        base_problem = copy.deepcopy(self)
+        output_problem = copy.deepcopy(self)
+        output_problem.identify_and_update_rule_element_indexes()
+        if output_problem.is_splittable():
+            splitted_problem = output_problem.split()
+            first_problem = splitted_problem[0]
+            second_problem = splitted_problem[1]
+            first_problem.solve_inplace()
+            second_problem.solve_inplace()
+            output_problem =  first_problem + second_problem
+        else:
+            if output_problem.is_solved():
+                return
+            elif output_problem.is_line_fully_defined_by_rule():
+                output_problem = output_problem.fully_defined_solve()
+            elif output_problem.all_full_cell_found():
+                output_problem = output_problem.all_full_cell_found_solve()
+            else:
+                if output_problem.is_subject_to_overlap_solving():
+                    output_problem = output_problem.overlapping_solve()
+                output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
+                output_problem = output_problem.extremities_fill_empty_solve()
+                output_problem = output_problem.complete_extremities_full_block_solve()
+        if output_problem == base_problem:
+            return
+        else:
+            self.update_cells_list_inplace(output_problem.cells[:])
+            self.solve_inplace()
