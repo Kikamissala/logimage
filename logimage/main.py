@@ -655,17 +655,6 @@ class Problem:
                 output_cells_list = self.fill_tail_of_cell_list_based_on_last_rule(output_cells_list,rule = self.rule,full_block = full_block)
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
-
-    @staticmethod
-    def get_splitted_problem(problem):
-        print(problem)
-        if problem.is_splittable():
-            print("True")
-            problem_splitted = problem.split()
-            print(problem_splitted)
-            return Problem.get_splitted_problem(problem_splitted[0]) + Problem.get_splitted_problem(problem_splitted[1])
-        else:
-            return [problem]
     
     def solve(self):
         base_problem = copy.deepcopy(self)

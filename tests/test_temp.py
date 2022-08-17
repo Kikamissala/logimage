@@ -4,20 +4,3 @@ from logimage.main import Cell, CellState, FullBlock, RuleList, Grid, \
 import numpy as np
 import pytest
 import pandas as pd
-
-# def test_solve_problem_with_split_needed_with_overlapping_in_second_part():
-#     problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-#     problem.solve()
-#     expected_problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)])
-#     assert(problem == expected_problem)
-
-# def test_splitted_problem():
-#     problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-#     splitted_problem  = Problem.get_splitted_problem(problem)
-#     assert(splitted_problem == [])
-
-# def test_solve_problem_with_split_needed_with_overlapping_in_second_part():
-#     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-#     problem.solve()
-#     expected_problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined)])
-#     assert(problem == expected_problem)

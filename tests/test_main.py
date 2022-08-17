@@ -977,3 +977,10 @@ def test_solve_problem_with_split_needed_with_overlapping_in_second_part():
     expected_problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)])
     print(expected_problem)
     assert(solved_problem == expected_problem)
+
+def test_solve_problem_with_split_needed_with_extremity_full_completing_in_second_part():
+    problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
+    solved_problem = problem.solve()
+    expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.undefined)])
+    print(expected_problem)
+    assert(solved_problem == expected_problem)
