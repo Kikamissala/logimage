@@ -470,19 +470,6 @@ class Problem:
             return True
         return False
     
-    # def update_cells_list(self, new_cell_lists):
-    #     for index, cell in enumerate(self.cells):
-    #         if new_cell_lists[index].cell_state == CellState.undefined:
-    #             continue
-    #         if new_cell_lists[index].cell_state != cell.cell_state:
-    #             if cell.cell_state != CellState.undefined:
-    #                 raise InvalidProblem("unable to update non undefined cell")
-    #             self.cells[index] = Cell(new_cell_lists[index].cell_state)
-    #             if new_cell_lists[index].rule_element_index is not None:
-    #                 self.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
-    #         elif new_cell_lists[index].rule_element_index is not None:
-    #             self.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
-    
     def update_cells_list(self, new_cell_lists):
         output_problem = copy.deepcopy(self)
         for index, cell in enumerate(output_problem.cells):
