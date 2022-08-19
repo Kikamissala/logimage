@@ -46,6 +46,16 @@ class Cell:
         elif new_cell_state == CellState.full:
             self.full()
 
+    def raise_if_update_impossible(self,new_cell):
+        if self.cell_state != new_cell.cell_state:
+            if self.cell_state != CellState.undefined:
+                raise InvalidCellStateModification("unable to update non undefined cell")
+        else: 
+            if new_cell.rule_element_index is not None:
+                if (self.rule_element_index is not None) & \
+                    (self.rule_element_index != new_cell.rule_element_index):
+                    raise InvalidCellStateModification("unable to modify already defined rule_element_index")
+
     # def modify(self,new_cell_state, new_rule_element_index = None):
     #     if isinstance(new_cell_state,CellState) is False:
     #         raise InvalidCellStateModification("new value is not a cell state")

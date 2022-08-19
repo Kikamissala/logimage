@@ -1,5 +1,5 @@
-from logimage.cell import Cell, CellState
-from logimage.rule import Rule
+from logimage.cell import Cell, CellState, InvalidCellStateModification
+from logimage.rule import Rule, RuleList
 from collections import Counter
 import copy
 
@@ -27,7 +27,9 @@ class ProblemAddError(Exception):
 
 class Problem:
 
-    def __init__(self, rule, cells):
+    def __init__(self, rule : Rule, cells):
+        if rule.compute_min_possible_len() > len(cells):
+            raise InvalidProblem("Rule minimum corresponding cells size exceeds input cells size")
         self.rule = rule
         self.cells = cells
         self.length = len(self.cells)
@@ -55,12 +57,26 @@ class Problem:
     def __getitem__(self,index):
         return self.cells[index]
     
+    def raise_if_update_impossible(self,new_problem):
+        for index, cell in enumerate(new_problem):
+            self.cells[index].raise_if_update_impossible(cell)
+
     def __setitem__(self,index,value:Cell):
-        self.cells[index] = self.cells[index].modify(value)
+        if self.cells[index] == value:
+            return
+        else:
+            try:
+                self.cells[index].raise_if_update_impossible(value)
+            except InvalidCellStateModification:
+                raise InvalidProblem("unable to modify cell")
+        self.cells[index] = value
 
     def __eq__(self,other):
         if isinstance(other,Problem):
             return (self.rule == other.rule) & (self.cells == other.cells)
+
+    def __len__(self):
+        return len(self.cells)
 
     def is_splittable(self):
         if self.length == 1:
@@ -291,6 +307,9 @@ class Problem:
         number_of_freedom_degrees = self.length - minimum_len_from_rule
         return number_of_freedom_degrees
 
+    def get_number_of_cell_in_state(self,cell_state:CellState):
+        return len([cell for cell in self.cells if cell.cell_state == cell_state])
+
     def is_solved(self):
         list_of_bool_is_undefined = [numerized_state == -1 for numerized_state in self.numerize_cell_list()]
         if any(list_of_bool_is_undefined):
@@ -303,35 +322,29 @@ class Problem:
             return True
         return False
     
+    def get_updated_state_indexes(self,other):
+        self.raise_if_update_impossible(other)
+        updated_state_indexes = []
+        for index, (first, second) in enumerate(zip(self.cells, other.cells)):
+            if first.cell_state != second.cell_state:
+                updated_state_indexes.append(index)
+        return updated_state_indexes
+
     def update_cells_list(self, new_cell_lists):
         output_problem = copy.deepcopy(self)
-        for index, cell in enumerate(output_problem.cells):
-            if new_cell_lists[index].cell_state == CellState.undefined:
+        for index, cell in enumerate(new_cell_lists):
+            if cell.cell_state == CellState.undefined:
                 continue
-            if new_cell_lists[index].cell_state != cell.cell_state:
-                if cell.cell_state != CellState.undefined:
-                    raise InvalidProblem("unable to update non undefined cell")
-                output_problem.cells[index] = Cell(new_cell_lists[index].cell_state)
-                if new_cell_lists[index].rule_element_index is not None:
-                    output_problem.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
-            elif new_cell_lists[index].rule_element_index is not None:
-                output_problem.cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
+            else:
+                output_problem[index] = new_cell_lists[index]
         return output_problem
     
     def update_cells_list_inplace(self, new_cell_lists):
-        output_cells = copy.deepcopy(self.cells)
-        for index, cell in enumerate(output_cells):
-            if new_cell_lists[index].cell_state == CellState.undefined:
+        for index, cell in enumerate(new_cell_lists):
+            if cell.cell_state == CellState.undefined:
                 continue
-            if new_cell_lists[index].cell_state != cell.cell_state:
-                if cell.cell_state != CellState.undefined:
-                    raise InvalidProblem("unable to update non undefined cell")
-                output_cells[index] = Cell(new_cell_lists[index].cell_state)
-                if new_cell_lists[index].rule_element_index is not None:
-                    output_cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
-            elif new_cell_lists[index].rule_element_index is not None:
-                output_cells[index].set_rule_element_index(new_cell_lists[index].rule_element_index)
-        self.cells = output_cells
+            else:
+                self.__setitem__(index,new_cell_lists[index])
 
     def fully_defined_solve(self):
         new_cells_list = []
@@ -560,3 +573,65 @@ class Problem:
         else:
             self.update_cells_list_inplace(output_problem.cells[:])
             self.solve_inplace()
+
+class InvalidProblemDict(Exception):
+    pass
+
+class InvalidProblemDictAssignment(Exception):
+    pass
+
+class ProblemDict:
+    
+    def __init__(self,problems = None, rule_list = None, problem_size = None):
+        if (rule_list is None) or (problem_size is None):
+            if problems is None:
+                raise InvalidProblemDict("cannot create ProblemDict without either rule_list and problem_size, or problems")
+            else:
+                self.check_input_problems(problems)
+                self.problems = self.generate_problems_from_list(problems)
+        else:
+            self.problems = self.generate_problems_from_rule_list(rule_list,problem_size)
+    
+    def check_input_problems(self,problems):
+        if len(problems) <= 1:
+            return
+        initial_len = len(problems[0])
+        index = 1
+        while index < len(problems):
+            if len(problems[index]) != initial_len:
+                raise InvalidProblemDict("Unable to create ProblemDict : All problems don't have the same size")
+            index += 1
+
+    def generate_problems_from_list(self,problems):
+        output_dict = {index : problems[index] for index in range(0,len(problems))}
+        return output_dict
+
+    def generate_problems_from_rule_list(self, rule_list, problem_size):
+        problems = []
+        for rule in rule_list:
+            problem = Problem(rule = rule, cells = [Cell()] * problem_size)
+            problems.append(problem)
+        output_dict = self.generate_problems_from_list(problems)
+        return output_dict
+
+    def __getitem__(self, index):
+        return self.problems[index]
+
+    def __setitem__(self, index, value:Problem):
+        if value.rule != self.problems[index].rule:
+            raise InvalidProblemDictAssignment("new problem doesn't have the same rules")
+        new_problem_cells = value.cells
+        for i, cell in enumerate(new_problem_cells):
+            try:
+                self.problems[index][i] = cell
+            except InvalidProblem:
+                raise InvalidProblemDictAssignment("new problem cells incompatible with old ones")
+    
+    def __len__(self):
+        return len(self.problems)
+    
+    def __eq__(self,other):
+        return self.problems == other.problems
+
+    def items(self):
+        return self.problems.items()

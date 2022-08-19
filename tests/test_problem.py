@@ -1,8 +1,14 @@
+import copy
 from logimage.cell import Cell, CellState
-from logimage.rule import Rule
-from logimage.problem import Problem, FullBlock, InvalidProblem, ProblemAddError
+from logimage.rule import Rule, RuleList, RuleSet
+from logimage.problem import Problem, FullBlock, InvalidProblem, ProblemAddError, ProblemDict, InvalidProblemDict,\
+    InvalidProblemDictAssignment
 import pytest
 import pandas as pd
+
+def test_problem_raises_if_rule_minimum_len_exceeds_cells_size():
+    with pytest.raises(InvalidProblem) as err:
+        problem = Problem(rule = Rule([2,1]), cells = [Cell(), Cell(), Cell()])
 
 def test_problem_contains_rule_and_list_of_cells_and_numerized_list_is_None_when_undefined():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
@@ -19,6 +25,45 @@ def test_problem_numerized_list_is_zeroes_when_full():
     numerized_cell_list = problem.numerize_cell_list()
     assert(numerized_cell_list == [0,0,0])
 
+def test_getitem_in_problem_returns_cell_at_index():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty)])
+    first_cell = problem[0]
+    assert(first_cell == Cell(CellState.full,rule_element_index=0))
+
+def test_setitem_does_nothing_if_cell_is_the_same():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty)])
+    expected_problem = copy.deepcopy(problem)
+    problem[0] = Cell(CellState.full,rule_element_index=0)
+    assert(problem == expected_problem)
+
+def test_setitem_modifies_state_to_empty_if_undefined():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.undefined), Cell(CellState.undefined), Cell(CellState.undefined)])
+    problem[0] = Cell(CellState.empty)
+    expected_problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.empty), Cell(CellState.undefined), Cell(CellState.undefined)])
+    assert(problem == expected_problem)
+
+def test_setitem_modifies_state_to_full_with_rule_element_index_if_undefined():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.undefined), Cell(CellState.undefined), Cell(CellState.undefined)])
+    problem[0] = Cell(CellState.full,rule_element_index=0)
+    expected_problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.undefined), Cell(CellState.undefined)])
+    assert(problem == expected_problem)
+
+def test_setitem_raises_if_modifying_already_defined_cell():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty)])
+    with pytest.raises(InvalidProblem) as err:
+        problem[0] = Cell(CellState.empty)
+
+def test_setitem_updates_rule_element_index_if_full_without_rule_element_index():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.undefined), Cell(CellState.undefined)])
+    problem[0] = Cell(CellState.full,rule_element_index=0)
+    expected_problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.undefined), Cell(CellState.undefined)])
+    assert(problem == expected_problem)
+
+def test_setitem_raises_if_modifying_already_defined_rule_element_index():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty), Cell(CellState.empty)])
+    with pytest.raises(InvalidProblem) as err:
+        problem[0] = Cell(CellState.full, rule_element_index=1)
+
 def test_is_problem_solved_returns_true_when_no_cell_is_undefined():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.empty), Cell(CellState.full)])
     is_problem_solved = problem.is_solved()
@@ -28,6 +73,12 @@ def test_problem_with_fully_defined_line_by_rule_returns_true_when_function_call
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
     bool_is_line_fully_defined_by_rule = problem.is_line_fully_defined_by_rule()
     assert(bool_is_line_fully_defined_by_rule == True)
+
+def test_get_different_state_indexes_returns_indexes_of_different_state():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
+    problem2 = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(), Cell()])
+    updated_state_indexes = problem.get_updated_state_indexes(problem2)
+    assert(updated_state_indexes == [0])
 
 def test_updating_cells_list_with_new_states_changes_cells_list():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(), Cell(), Cell()])
@@ -772,3 +823,69 @@ def test_solve_inplace_problem_with_split_needed_with_extremity_full_completing_
     expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.undefined)])
     print(problem)
     assert(problem == expected_problem)
+
+def test_problem_dict_from_list_of_problems():
+    problem = Problem(rule = Rule([1]), cells = [Cell()])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell()])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+
+def test_problem_dict_attribute_is_dict():
+    problem = Problem(rule = Rule([1]), cells = [Cell()])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell()])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+    assert(isinstance(problem_dict.problems,dict))
+
+def test_problem_dict_raises_when_all_problems_not_the_same_size():
+    problem = Problem(rule = Rule([1]), cells = [Cell()])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell(),Cell()])
+    with pytest.raises(InvalidProblemDict) as err:
+        problem_dict = ProblemDict(problems = [problem, problem1])
+
+def test_problem_dict_with_only_rule_list_raises():
+    rule_list = RuleList([[1],[1]])
+    with pytest.raises(InvalidProblemDict) as err:
+        problem_dict = ProblemDict(rule_list = rule_list)
+
+def test_generate_problems_from_rules_and_problem_size():
+    rule_list = RuleList([[1],[1]])
+    problem_size = 1
+    problem_dict = ProblemDict(rule_list = rule_list, problem_size = problem_size)
+    expected_problem_dict = {0 : Problem(rule = Rule([1]),cells=[Cell()]), 1 : Problem(rule = Rule([1]),cells=[Cell()])}
+    assert(problem_dict.problems == expected_problem_dict)
+
+def test_problem_dict_getitem_returns_problem_at_index_i():
+    problem = Problem(rule = Rule([1]), cells = [Cell()])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+    problem_from_problem_dict = problem_dict[1]
+    assert(problem_from_problem_dict == problem1)
+
+def test_assigning_problem_at_index_i():
+    problem = Problem(rule = Rule([1]), cells = [Cell()])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell()])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+    problem_to_assign = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    problem_dict[0] = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    assert(problem_dict[0] == problem_to_assign)
+
+def test_assigning_incompatible_problem_raises():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell()])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+    problem_to_assign = Problem(rule = Rule([1]), cells = [Cell()])
+    with pytest.raises(InvalidProblemDictAssignment) as err:
+        problem_dict[0] = problem_to_assign
+
+def test_assigning_problem_with_different_rule_raise():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell()])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+    problem_to_assign = Problem(rule = Rule([]), cells = [Cell(CellState.full)])
+    with pytest.raises(InvalidProblemDictAssignment) as err:
+        problem_dict[0] = problem_to_assign
+
+def test_get_problem_dict_len():
+    problem = Problem(rule = Rule([1]), cells = [Cell()])
+    problem1 = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
+    problem_dict = ProblemDict(problems = [problem, problem1])
+    assert(len(problem_dict) == 2)
