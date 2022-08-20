@@ -127,7 +127,7 @@ def test_first_index_of_value_for_list_with_none_value():
 
 def test_find_sequences_without_zeroes_in_empty_series_returns_empty_list():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
-    numerized_series = pd.Series()
+    numerized_series = pd.Series(data=None,dtype='float64')
     list_of_not_zero_series = problem.find_series_without_value(numerized_series,0)
     expected_list_of_series = []
     assert(list_of_not_zero_series == expected_list_of_series)
@@ -339,6 +339,31 @@ def test_identify_rule_element_if_two_full_blocks_at_right_extremity_returns_ind
     identified_rule_element_indexes = problem.identify_rule_element_indexes()
     assert((identified_rule_element_indexes == [None,None,0,None,1]))
 
+def test_identify_rule_elemnt_if_only_one_rule_element_updates_all_full_cells_to_rule_element_0():
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,0,None,None]))
+
+def test_identify_rule_element_if_space_between_start_and_first_empty_with_full_in_between_is_too_little_for_2_first_rule_elements():
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.empty),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,0,None,None]))
+
+def test_identify_rule_element_if_space_between_last_empty_and_end_with_full_in_between_is_too_little_for_2_last_rule_elements():
+    problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,1,None,None]))
+
+def test_identify_rule_element_if_two_full_side_to_side_and_one_has_no_rule_element_index():
+    problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.full),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,1,1,None]))
+
+def test_identify_when_maximum_rule_element_value_is_unique_and_incomplete_block_size_higher_than_second_highest_rule_element_value():
+    problem = Problem(rule = Rule([1,3]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,None,1,1,None]))
+
 def test_update_rule_element_indexes_in_problem_changes_value_updates_attribute_and_corresponding_cells():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
     new_rule_element_indexes = [0,None,1]
@@ -512,6 +537,12 @@ def test_tail_fill_empty_solve_with_last_cell_undefined_then_empty_and_last_rule
     expected_cells_list = [Cell(CellState.undefined), Cell(CellState.full), Cell(CellState.empty),Cell(CellState.empty)]
     assert(solved_problem.cells == expected_cells_list)
 
+def test_tail_fill_empty_solve_with_complex_problem():
+    problem = Problem(rule = Rule([14]), cells = [Cell(CellState.undefined)] * 4 + [Cell(CellState.empty)]+ [Cell(CellState.undefined)] + [Cell(CellState.full, rule_element_index=0)] * 8 + [Cell(CellState.undefined)]*6)
+    solved_problem = problem.extremities_fill_empty_solve()
+    expected_cells_list = [Cell(CellState.empty)] * 5 + [Cell(CellState.undefined)] + [Cell(CellState.full, rule_element_index=0)] * 8 + [Cell(CellState.undefined)]*6
+    assert(solved_problem.cells == expected_cells_list)
+
 def test_get_incomplete_full_blocks_from_problem_with_one_full_returns_empty_list():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
     incomplete_full_blocks = problem.identify_incomplete_full_blocks()
@@ -625,6 +656,18 @@ def test_both_extremity_can_be_partially_filled_works():
     solved_problem = problem.complete_extremities_full_block_solve()
     expected_cells = [Cell(CellState.undefined),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.full,rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined)]
     assert(solved_problem.cells == expected_cells)
+
+def test_complete_extremities_full_block_solve_with_complex_problem_works():
+    problem = Problem(Rule([6, 1, 4]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full)] + [Cell(CellState.undefined)] * 17)
+    solved_problem = problem.complete_extremities_full_block_solve()
+    expected_cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] * 4 + [Cell(CellState.undefined)] * 14
+    assert(solved_problem.cells == expected_cells)
+
+# Rajouter la possibilité de remplir entre 2 cells full avec le même rule_element_index, des fulls avec 
+# le même rule_element_index.
+# Rajouter aussi la possibilité de remplir les blocs avec un empty en bout et au moins un rule_element_index connu
+# Il faut aussi permettre de compléter les blocs qui avec rule_element_index identifiés qui font la 
+# taille de l'indice correspondant.
 
 def test_solving_of_already_solved_problem_returns_problem():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0)])
@@ -814,14 +857,16 @@ def test_solve_problem_with_split_needed_with_extremity_full_completing_in_secon
     problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
     solved_problem = problem.solve()
     expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.undefined)])
-    print(expected_problem)
     assert(solved_problem == expected_problem)
+
+def test_solve_with_full_block_size_equal_max_rule_size():
+    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full)] + [Cell(CellState.undefined)]*17)
+    solved_problem = problem.solve()
 
 def test_solve_inplace_problem_with_split_needed_with_extremity_full_completing_in_second_part():
     problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
     problem.solve_inplace()
     expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.undefined)])
-    print(problem)
     assert(problem == expected_problem)
 
 def test_problem_dict_from_list_of_problems():

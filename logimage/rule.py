@@ -40,3 +40,6 @@ class RuleSet:
     def __init__(self, row_rules, column_rules):
         self.row_rules = RuleList(row_rules)
         self.column_rules = RuleList(column_rules)
+    
+    def __eq__(self,other):
+        return (isinstance(other,RuleSet)) & (self.row_rules == other.row_rules) & (self.column_rules == other.column_rules)

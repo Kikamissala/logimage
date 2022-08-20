@@ -2,13 +2,17 @@ from logimage.cell import Cell, CellState, Grid
 from .problem import Problem, ProblemDict
 from logimage.rule import InvalidRule, RuleSet
 import copy
+import numpy as np
+from matplotlib import pyplot
+
 
 class Logimage:
     
-    def __init__(self, grid_dimensions, rules : RuleSet):
-        self.grid = Grid(grid_dimensions[0], grid_dimensions[1])
+    def __init__(self, rules : RuleSet):
         self.rules = rules
+        self.grid = Grid(len(rules.row_rules), len(rules.column_rules))
         self.raise_if_rules_invalid()
+        self.logimage_problems = LogimageProblems(rule_set=rules)
 
     def is_rule_exceeding_grid_size(self):
         maximum_minimum_possible_len_row = self.rules.column_rules.compute_maximum_minimum_possible_len()
@@ -19,20 +23,26 @@ class Logimage:
             return True
         else:
             return False
-    
-    def is_rule_number_exceeding_grid_size(self):
-        if len(self.rules.row_rules) > self.grid.row_number:
-            return True
-        elif len(self.rules.column_rules) > self.grid.column_number:
-            return True
-        else:
-            return False
 
     def raise_if_rules_invalid(self):
         if self.is_rule_exceeding_grid_size():
             raise InvalidRule("A rule is exceeding grid size")
-        if self.is_rule_number_exceeding_grid_size():
-            raise InvalidRule("Number of rules exceeding grid size")
+    
+    def update_grid_from_problems(self):
+        for row_index, problem in self.logimage_problems.row_problems.items():
+            numerized_cells = problem.numerize_cell_list()
+            self.grid[row_index,:] = np.array(numerized_cells)
+    
+    def solve(self):
+        self.logimage_problems.solve()
+        self.solved = self.logimage_problems.solved
+        self.finished = self.logimage_problems.finished
+        self.update_grid_from_problems()
+    
+    def plot_grid(self):
+        pyplot.figure(figsize=(5,5))
+        pyplot.imshow(self.grid.cells)
+        pyplot.show()
 
 class ProblemCoordinates:
 
@@ -79,7 +89,7 @@ class LogimageProblems:
         self.__getitem__(dimension)[problem_index] = value
         for index in modified_indexes:
             other_dimension = self.other_dimension(dimension)
-            self.__getitem__(other_dimension)[index][problem_index] = value[index]
+            self.__getitem__(other_dimension)[index][problem_index] = Cell(value[index].cell_state)
             self.add_candidate_problem(dimension=other_dimension,index=index)
 
     def add_candidate_problem(self,dimension, index):

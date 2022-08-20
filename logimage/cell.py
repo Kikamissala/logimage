@@ -56,15 +56,6 @@ class Cell:
                     (self.rule_element_index != new_cell.rule_element_index):
                     raise InvalidCellStateModification("unable to modify already defined rule_element_index")
 
-    # def modify(self,new_cell_state, new_rule_element_index = None):
-    #     if isinstance(new_cell_state,CellState) is False:
-    #         raise InvalidCellStateModification("new value is not a cell state")
-    #     if self.cell_state != CellState.undefined:
-    #         raise InvalidCellStateModification("impossible to modify not undefined cell state")
-    #     if new_cell_state == CellState.empty:
-    #         self.empty()
-    #     elif new_cell_state == CellState.full:
-    #         self.full()
 
     def set_rule_element_index(self,rule_element_index):
         if self.cell_state != CellState.full:
@@ -93,7 +84,7 @@ class InvalidGridSet(Exception):
 
 class Grid:
     def __init__(self, row_number, column_number):
-        self.cells = np.array([[Cell() for j in range(0,column_number)] for i in range(0,row_number)])
+        self.cells = np.array([[-1 for j in range(0,column_number)] for i in range(0,row_number)])
         self.row_number = row_number
         self.column_number = column_number
     
@@ -105,11 +96,14 @@ class Grid:
         row_index, column_index = pos
         if isinstance(value,np.ndarray):
             for item in value:
-                self.raise_if_not_cell(item)
+                self.raise_if_not_valid_value(item)
             self.cells[row_index,column_index] = value
         else:    
-            self.raise_if_not_cell(value)
+            self.raise_if_not_valid_value(value)
             self.cells[row_index,column_index] = value
+    
+    def __eq__(self,other):
+        return (isinstance(other,Grid)) & (np.array_equal(self.cells,other.cells))
 
     def empty(self, row_number,column_number):
         self.cells[row_number,column_number].empty()
@@ -118,6 +112,6 @@ class Grid:
         self.cells[row_number,column_number].full()
 
     @staticmethod
-    def raise_if_not_cell(item):
-        if not isinstance(item, Cell):
-            raise InvalidGridSet(f"{item} is not a cell")
+    def raise_if_not_valid_value(item):
+        if item not in [-1,0,1]:
+            raise InvalidGridSet(f"{item} is not a valid value")

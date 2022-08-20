@@ -1,19 +1,16 @@
-from logimage.cell import Cell, CellState
+from logimage.cell import Cell, CellState, Grid
 from logimage.rule import RuleSet, InvalidRule, RuleList, Rule
 from logimage.logimage import Logimage, LogimageProblems, ProblemCoordinates
 from logimage.problem import Problem,ProblemDict
 import pytest
+import numpy as np
 
 def test_generate_logimage_needs_grid_dimensions_and_list_of_rules_for_rows_and_columns():
-    logimage = Logimage(grid_dimensions = (2,2),rules = RuleSet(row_rules = [[1],[1]],column_rules = [[1],[1]]))
+    logimage = Logimage(rules = RuleSet(row_rules = [[1],[1]],column_rules = [[1],[1]]))
 
 def test_logimage_init_raises_when_a_rule_values_exceeds_size_of_grid():
     with pytest.raises(InvalidRule) as err:
-        logimage = Logimage(grid_dimensions = (2,2),rules = RuleSet(row_rules = [[1,1],[1]],column_rules = [[1],[1]]))
-
-def test_logimage_init_raises_when_number_of_row_rules_not_equal_number_of_rows():
-    with pytest.raises(InvalidRule) as err:
-        logimage = Logimage(grid_dimensions = (2,2),rules = RuleSet(row_rules = [[1],[1],[1]],column_rules = [[1],[1]]))
+        logimage = Logimage(rules = RuleSet(row_rules = [[1,1],[1]],column_rules = [[1],[1]]))
 
 def test_create_logimage_problems_from_ruleset_and_grid_dimensions_has_column_problems_and_row_problems():
     rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
@@ -74,6 +71,13 @@ def test_solve_problem_function_updates_problem_and_transposes_cell_updates():
     logimage_problems = LogimageProblems(rule_set = rule_set)
     logimage_problems.solve_problem(dimension = 0, index = 0)
     assert((logimage_problems[0][0][1].cell_state == CellState.full) & (logimage_problems[1][1][0].cell_state == CellState.full))
+
+def test_solve_problem_function_updates_problem_and_transposes_cell_updates_but_doesnt_set_rule_element_index():
+    rule_set = RuleSet(row_rules=RuleList([Rule([2]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1]),Rule([1])]))
+    logimage_problems = LogimageProblems(rule_set = rule_set)
+    logimage_problems.solve_problem(dimension = 0, index = 0)
+    assert((logimage_problems[0][0][1].rule_element_index == 0) & (logimage_problems[1][1][0].rule_element_index == None))
+
 
 def test_solve_problem_function_updates_candidate_problems():
     rule_set = RuleSet(row_rules=RuleList([Rule([2]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1]),Rule([1])]))
@@ -190,7 +194,13 @@ def test_full_solve_on_impossible_problem_has_finished_true_and_solved_false():
     assert((logimage_problems.finished == True) & (logimage_problems.solved == False))
 
 def test_update_grid_from_problems_uses_row_problems_to_define_grid():
-    pass
+    rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
+    logimage = Logimage(rules = rule_set)
+    logimage.logimage_problems[0,0] = Problem(Rule([1]),cells=[Cell(CellState.full),Cell(CellState.empty)])
+    logimage.update_grid_from_problems()
+    expected_grid = Grid(row_number=2,column_number=2)
+    expected_grid[0,:] = np.array([1,0])
+    assert(np.array_equal(expected_grid,logimage.grid))
 
 def test_render_grid_displays_grid():
     pass

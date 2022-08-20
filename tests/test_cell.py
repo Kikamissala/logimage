@@ -80,39 +80,39 @@ def test_update_cell_rule_element_for_non_full_cell_raises():
 
 def test_grid_creation_with_one_row_and_one_column_returns_list_of_list_of_one_cell():
     grid = Grid(row_number = 1, column_number = 1)
-    assert(grid.cells == np.array([[Cell()]]))
+    assert(grid.cells == np.array([[-1]]))
 
 def test_grid_creation_with_one_row_and_two_column_returns_list_of_list_of_one_list_of_two_cells_with_good_coordinates():
     grid = Grid(row_number = 1, column_number = 2)
-    assert(np.array_equal(grid.cells, np.array([[Cell(), Cell()]])))
+    assert(np.array_equal(grid.cells, np.array([[-1, -1]])))
 
 def test_grid_creation_with_two_row_and_one_column_return_list_of_lists_of_two_lists_with_one_cell_each_with_good_coordinates():
     grid = Grid(row_number = 2, column_number = 1)
-    assert(np.array_equal(grid.cells, np.array([[Cell()], [Cell()]])))
+    assert(np.array_equal(grid.cells, np.array([[-1], [-1]])))
 
 def test_grid_creation_with_two_rows_and_two_columns_return_right_list_of_lists_with_good_coordinates():
     grid = Grid(row_number = 2, column_number = 2)
-    assert(np.array_equal(grid.cells, np.array([[Cell(), Cell()], [Cell(), Cell()]])))
+    assert(np.array_equal(grid.cells, np.array([[-1, -1], [-1, -1]])))
 
 def test_get_item_in_grid_returns_right_cell():
     grid = Grid(row_number = 2, column_number = 2)
     selected_cell = grid[0,0]
-    assert(selected_cell == Cell())
+    assert(selected_cell == -1)
 
 def test_get_row_in_grid_returns_right_row():
     grid = Grid(row_number = 2, column_number = 2)
     selected_cell = grid[0,:]
-    assert(np.array_equal(selected_cell, np.array([Cell(),Cell()])))
+    assert(np.array_equal(selected_cell, np.array([-1,-1])))
 
 def test_set_cell_in_grid_updates_grid():
     grid = Grid(row_number = 2, column_number = 2)
-    grid[0,0] = Cell(CellState.empty)
-    assert(grid[0,0] == Cell(CellState.empty))
+    grid[0,0] = 0
+    assert(grid[0,0] == 0)
 
 def test_set_row_values_in_grid_updates_grid():
     grid = Grid(row_number = 2, column_number = 2)
-    grid[0,:] = np.array([Cell(CellState.empty),Cell(CellState.empty)])
-    assert(np.array_equal(grid[0,:], np.array([Cell(CellState.empty),Cell(CellState.empty)])))
+    grid[0,:] = np.array([0,0])
+    assert(np.array_equal(grid[0,:], np.array([0,0])))
 
 def test_set_value_in_grid_not_cell_returns_error():
     grid = Grid(row_number = 2, column_number = 2)
@@ -123,19 +123,3 @@ def test_set_row_in_grid_not_cell_returns_error():
     grid = Grid(row_number = 2, column_number = 2)
     with pytest.raises(InvalidGridSet) as err:
         grid[0,:] = np.array([8,8])
-
-def test_set_cell_at_coordinates_to_empty():
-    grid = Grid(row_number = 2, column_number = 2)
-    grid.empty(0,0)
-    assert(grid[0,0] == Cell(cell_state=CellState.empty))
-
-def test_set_cell_at_coordinates_to_full():
-    grid = Grid(row_number = 2, column_number = 2)
-    grid.full(0,0)
-    assert(grid[0,0] == Cell(cell_state=CellState.full))
-
-def test_emptying_not_undefined_cell_in_grid_raises():
-    grid = Grid(row_number = 2, column_number = 2)
-    grid.full(0,0)
-    with pytest.raises(InvalidCellStateModification) as err:
-        grid.empty(0,0)

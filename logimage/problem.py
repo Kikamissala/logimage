@@ -99,7 +99,7 @@ class Problem:
         complete_full_blocks = self.identify_complete_full_blocks()
         sorted_complete_full_blocks = sorted(complete_full_blocks, key=lambda d: d.initial_index)
         for full_block in sorted_complete_full_blocks:
-            rule_element_index_none_list = [cell.rule_element_index is None for cell in self.cells[full_block.initial_index:full_block.last_index - 1]]
+            rule_element_index_none_list = [cell.rule_element_index is None for cell in self.cells[full_block.initial_index:full_block.last_index]]
             if any(rule_element_index_none_list):
                 continue
             else:
@@ -150,6 +150,15 @@ class Problem:
                 return input_series.index[0]
             else:
                 return Problem.find_first_index_of_value(input_series[1:],value)
+    @staticmethod
+    def find_last_index_of_value(input_series, value):
+        if len(input_series) == 0:
+            return None
+        else:
+            if input_series.iloc[len(input_series)-1] == value:
+                return input_series.index[len(input_series)-1]
+            else:
+                return Problem.find_last_index_of_value(input_series[:-1],value)
 
     @staticmethod
     def find_first_index_of_non_value(input_series, value):
@@ -254,11 +263,10 @@ class Problem:
         return rule_element_indexes_output
 
     def get_elements_for_identifying_rule_element_indexes(self):
-        rule_element_indexes = self.get_rule_element_indexes()
         list_of_identified_full_blocks = self.identify_complete_full_blocks()
         first_undefined_cell_index = self.first_undefined_cell_index()
         last_undefined_cell_index = self.last_undefined_cell_index()
-        return rule_element_indexes, list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index
+        return list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index
 
     def associate_complete_full_block_with_rule_element_at_extremity(self, rule_element_indexes, list_of_identified_full_blocks,\
          first_undefined_cell_index, last_undefined_cell_index, block_index, full_block):
@@ -271,8 +279,39 @@ class Problem:
             return rule_element_indexes
         return rule_element_indexes
 
-    def identify_rule_element_indexes(self):
-        rule_element_indexes, list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index = self.get_elements_for_identifying_rule_element_indexes()
+    def get_full_indexes_before_first_empty_when_space_too_little_for_two_rule_elements(self,numerized_list,rule):
+        numerized_series = pd.Series(numerized_list)
+        first_full_index = Problem.find_first_index_of_value(numerized_series,1)
+        all_full_indexes_before_first_empty = []
+        if len(rule) > 1:
+            first_empty_index = Problem.find_first_index_of_value(numerized_series,0)
+            if (first_empty_index is not None):
+                if first_full_index < first_empty_index:
+                    number_of_cells_before_first_empty = first_empty_index
+                    minimum_size_of_problem_with_two_first_rules = Rule(rule[0:2]).compute_min_possible_len()
+                    if number_of_cells_before_first_empty < minimum_size_of_problem_with_two_first_rules:
+                        all_full_indexes_before_first_empty = [index for index,value in enumerate(numerized_list) if (value== 1) & (index < first_empty_index)]
+        return all_full_indexes_before_first_empty
+                                        
+
+    def set_rule_element_to_0_if_space_between_start_and_first_empty_too_short_for_two_rule_elements(self,rule_element_indexes):
+        all_full_indexes_before_first_empty = self.get_full_indexes_before_first_empty_when_space_too_little_for_two_rule_elements(self.numerize_cell_list(),rule = self.rule)
+        rule_element_index = 0
+        for index in all_full_indexes_before_first_empty:
+            rule_element_indexes[index] = rule_element_index
+        return rule_element_indexes
+    
+    def set_rule_element_to_max_rule_element_index_if_space_between_last_empty_and_end_too_short_for_two_last_rule_elements(self,rule_element_indexes):
+        all_full_indexes_before_first_empty_reversed = self.get_full_indexes_before_first_empty_when_space_too_little_for_two_rule_elements(self.numerize_cell_list()[::-1],rule = self.rule[::-1])
+        all_full_indexes_after_last_empty = [self.length - 1 - index for index in all_full_indexes_before_first_empty_reversed]
+        all_full_indexes_before_first_empty_reversed
+        rule_element_index = len(self.rule) -1
+        for index in all_full_indexes_after_last_empty:
+            rule_element_indexes[index] = rule_element_index
+        return rule_element_indexes
+
+    def identify_rule_element_indexes_on_complete_blocks(self, rule_element_indexes):
+        list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index = self.get_elements_for_identifying_rule_element_indexes()
         number_of_rule_elements_per_value = Counter(self.rule)
         number_of_blocks_per_len = Counter([full_block.block_len for full_block in list_of_identified_full_blocks])
         for block_index, full_block in enumerate(list_of_identified_full_blocks):
@@ -286,6 +325,46 @@ class Problem:
                 full_block.initial_index, full_block.last_index, rule_element_index_of_this_block)
             else:
                 rule_element_indexes = self.associate_complete_full_block_with_rule_element_at_extremity(rule_element_indexes, list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index, block_index, full_block)
+        return rule_element_indexes
+
+    def identify_rule_element_indexes(self):
+        rule_element_indexes = self.get_rule_element_indexes()
+        if len(self.rule) == 0:
+            return rule_element_indexes
+        if len(self.rule) == 1:
+            all_full_indexes = [index for index,cell in enumerate(self.cells) if cell.cell_state == CellState.full]
+            for index in all_full_indexes:
+                rule_element_indexes[index] = 0
+            return rule_element_indexes
+        rule_element_indexes = self.identify_rule_element_indexes_on_complete_blocks(rule_element_indexes)
+        numerized_series = pd.Series(self.numerize_cell_list())
+        first_full_index = Problem.find_first_index_of_value(numerized_series,1)
+        if first_full_index is not None:
+            rule_element_indexes = self.set_rule_element_to_0_if_space_between_start_and_first_empty_too_short_for_two_rule_elements(rule_element_indexes)
+            rule_element_indexes = self.set_rule_element_to_max_rule_element_index_if_space_between_last_empty_and_end_too_short_for_two_last_rule_elements(rule_element_indexes)
+        list_of_incomplete_full_blocks = self.identify_incomplete_full_blocks()
+        max_rule_element = max(self.rule)
+        max_rule_element_index = [index for index, value in enumerate(self.rule) if value == max_rule_element][0]
+        number_of_max_rule_element_in_rule = len([value for value in self.rule if value == max_rule_element])
+        rule_without_max = [value for value in self.rule if value != max_rule_element]
+        if len(rule_without_max) > 0:
+            second_max_rule_element = max(rule_without_max)
+        else:
+            second_max_rule_element = None
+        for incomplete_full_block in list_of_incomplete_full_blocks:
+            first_index = incomplete_full_block.initial_index
+            last_index = incomplete_full_block.initial_index + incomplete_full_block.block_len
+            rule_element_indexes_in_block = [value for value in rule_element_indexes[first_index:last_index] if value is not None]
+            number_of_defined_rule_elements = len(rule_element_indexes_in_block)
+            if number_of_defined_rule_elements == 0:
+                if number_of_max_rule_element_in_rule == 1:
+                    if second_max_rule_element is not None:
+                        if incomplete_full_block.block_len > second_max_rule_element:
+                            for index in range(first_index,last_index):
+                                rule_element_indexes[index] = max_rule_element_index
+            elif number_of_defined_rule_elements != incomplete_full_block.block_len:
+                for index in range(first_index,last_index):
+                    rule_element_indexes[index] = rule_element_indexes_in_block[0]
         return rule_element_indexes
     
     def update_rule_element_indexes(self, new_rule_element_indexes):
@@ -436,7 +515,7 @@ class Problem:
         output_cells_list = copy.deepcopy(self.cells)
         for index in range(0,last_index_to_fill_with_empty):
             if output_cells_list[index].cell_state == CellState.undefined:
-                output_cells_list[index].empty()
+                output_cells_list[index] = Cell(CellState.empty)
         solved_problem = Problem(self.rule, output_cells_list)
         return solved_problem
 
@@ -476,7 +555,7 @@ class Problem:
     def all_undefined_to_full_in_range(cells_list,range_min, range_max, rule_element_index = None):
         for index in range(range_min,range_max):
             if cells_list[index].cell_state == CellState.undefined:
-                cells_list[index].full()
+                cells_list[index] = Cell(CellState.full, rule_element_index=rule_element_index)
             if (cells_list[index].cell_state == CellState.full) & (rule_element_index is not None):
                 cells_list[index].set_rule_element_index(rule_element_index)
         return cells_list
