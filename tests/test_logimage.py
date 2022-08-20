@@ -167,12 +167,6 @@ def test_scan_problems_for_overlap_updates_candidate_problems_with_column_proble
     logimage_problems.scan_for_overlap_problems()
     assert(logimage_problems.candidate_problems == {ProblemCoordinates(1,1)})
 
-def test_get_coordinate_and_solve_when_candidate_problem_empty_updates_finished_attribute_to_true():
-    rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
-    logimage_problems = LogimageProblems(rule_set = rule_set)
-    logimage_problems.get_candidate_and_solve_problem()
-    assert(logimage_problems.finished == True)
-
 def test_is_solved_for_solved_logimage_problems_returns_true():
     rule_set = RuleSet(row_rules=RuleList([Rule([2]),Rule([2])]),column_rules=RuleList([Rule([2]),Rule([2])]))
     logimage_problems = LogimageProblems(rule_set = rule_set)
