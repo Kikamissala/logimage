@@ -364,6 +364,11 @@ def test_identify_when_maximum_rule_element_value_is_unique_and_incomplete_block
     identified_rule_element_indexes = problem.identify_rule_element_indexes()
     assert((identified_rule_element_indexes == [None,None,1,1,None]))
 
+def test_identify_first_rule_element_when_space_between_start_and_first_full_cell_too_short_for_other_rule_element():
+    problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
+    identified_rule_element_indexes = problem.identify_rule_element_indexes()
+    assert((identified_rule_element_indexes == [None,0,None,None,None]))
+
 def test_update_rule_element_indexes_in_problem_changes_value_updates_attribute_and_corresponding_cells():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
     new_rule_element_indexes = [0,None,1]
@@ -665,9 +670,37 @@ def test_complete_extremities_full_block_solve_with_complex_problem_works():
 
 # Rajouter la possibilité de remplir entre 2 cells full avec le même rule_element_index, des fulls avec 
 # le même rule_element_index.
+
+def test_complete_gap_between_two_full_with_same_rule_element_index():
+    problem = Problem(Rule([3]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] * 2)
+    solved_problem = problem.complete_gaps_between_full_with_same_rule_element_index_solve()
+    expected_cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] * 3 + [Cell(CellState.undefined)] * 2
+    assert(solved_problem.cells == expected_cells)
+
 # Rajouter aussi la possibilité de remplir les blocs avec un empty en bout et au moins un rule_element_index connu
+
 # Il faut aussi permettre de compléter les blocs qui avec rule_element_index identifiés qui font la 
 # taille de l'indice correspondant.
+
+def test_complete_block_if_rule_element_idex_known_and_block_len_equals_rule_element():
+    problem = Problem(Rule([1,2]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] * 5)
+    solved_problem = problem.incomplete_full_block_with_rule_element_has_rule_element_len_solve()
+    expected_cells = [Cell(CellState.undefined)] + [Cell(CellState.empty)]  + [Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.empty)] + [Cell(CellState.undefined)] * 4
+    assert(solved_problem.cells == expected_cells)
+# Potentiellement ajouter la feature qui comble les undefined entre deux blocs vides dont l'écart est inférieur à la rule 
+# la plus faible de la ligne
+
+
+def test_problem_with_big_block_that_can_only_fit_in_one_non_empty_block_and_can_overlap_there():
+    problem = Problem(Rule([1,2]), cells = [Cell(CellState.empty)] +[Cell(CellState.undefined)] +  [Cell(CellState.empty)] + [Cell(CellState.undefined)] +  [Cell(CellState.empty)] + [Cell(CellState.undefined)]*2)
+    solved_problem = problem.fitting_big_rule_element_in_only_available_spot_solve()
+    expected_cells = [Cell(CellState.empty)] +[Cell(CellState.undefined)] +  [Cell(CellState.empty)] + [Cell(CellState.undefined)] +  [Cell(CellState.empty)] + [Cell(CellState.full,rule_element_index=1)]*2
+    assert(solved_problem.cells == expected_cells)
+# il faudrait aussi rajouter la possibilité de splitter le pb dans le cas où on a un vide et avant un full avec une cellule 
+# avec rule_element, et si l'espace entre le début et la case empty ne permet pas de recueillir plus d'indices que jusqu'au 
+# dernier identifié on peut splitter au niveau de l'empty.
+# il faudrait aussi rassembler is_splittable et le split en lui même.
+
 
 def test_solving_of_already_solved_problem_returns_problem():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0)])
@@ -762,90 +795,128 @@ def test_adding_problem_len_2_rule_1_with_undefined_empty_and_problem_len_1_rule
     expected_mixed_problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.undefined), Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
     assert(mixed_problem == expected_mixed_problem)
 
-def test_is_problem_splittable_with_complete_full_block_with_known_rule_element_index_returns_true():
+def test_split_if_possible_with_complete_full_block_with_known_rule_element_index_returns_2_problems():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0), Cell(CellState.empty),Cell(CellState.undefined)])
-    bool_problem_splittable = problem.is_splittable()
-    assert(bool_problem_splittable == True)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)]),\
+        Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])]
+    assert(splitted_problem_list == expected_splitted_list)
 
-def test_is_problem_splittable_with_empty_at_start_returns_true():
+def test_split_if_possible_with_empty_at_start_returns_first_part_without_rule_element_and_empty_cell():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.empty), Cell(CellState.undefined)])
-    bool_problem_splittable = problem.is_splittable()
-    assert(bool_problem_splittable == True)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([]), cells = [Cell(CellState.empty)]),\
+        Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])]
+    assert(splitted_problem_list == expected_splitted_list)
 
-def test_is_problem_splittable_with_empty_at_end_returns_true():
+def test_split_if_possible_with_empty_at_end_returns_first_part_with_rule_and_undefined_cell_and_second_part_no_rule_and_empty_cell():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined), Cell(CellState.empty)])
-    bool_problem_splittable = problem.is_splittable()
-    assert(bool_problem_splittable == True)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)]),\
+        Problem(rule = Rule([]), cells = [Cell(CellState.empty)])]
+    assert(splitted_problem_list == expected_splitted_list)
 
-def test_is_problem_splittable_for_only_full_cells_is_false():
+def test_split_if_possible_for_only_full_cells_returns_original_problem():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
-    bool_problem_splittable = problem.is_splittable()
-    assert(bool_problem_splittable == False)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [problem]
+    assert(splitted_problem_list == expected_splitted_list)
 
-def test_is_problem_splittable_for_only_empty_cells_is_false():
+def test_split_if_possible_for_only_empty_cells_returns_original_problem():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.empty),Cell(CellState.empty)])
-    bool_problem_splittable = problem.is_splittable()
-    assert(bool_problem_splittable == False)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [problem]
+    assert(splitted_problem_list == expected_splitted_list)
 
-def test_is_problem_splittable_for_only_undefined_cells_is_false():
+def test_split_if_possible_for_only_undefined_cells_returns_original_problem():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined)])
-    bool_problem_splittable = problem.is_splittable()
-    assert(bool_problem_splittable == False)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [problem]
+    assert(splitted_problem_list == expected_splitted_list)
+
+def test_split_if_possible_problem_with_empty_at_start():
+    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.empty),Cell(CellState.empty),Cell(CellState.undefined)])
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([]), cells = [Cell(CellState.empty),Cell(CellState.empty)]),\
+        Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])]
+    assert(splitted_problem_list == expected_splitted_list)
+
+def test_split_if_possible_with_partially_identified_block_if_empty_before_at_distance_making_impossible_put_other_rule():
+    problem = Problem(Rule([1,3]), cells = [Cell(CellState.undefined)] + [Cell(CellState.empty)] + [Cell(CellState.undefined)] + [Cell(CellState.full,rule_element_index=1)] + [Cell(CellState.undefined)] * 2)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)]),\
+        Problem(rule = Rule([3]), cells = [Cell(CellState.empty)] + [Cell(CellState.undefined)] + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] * 2)]
+    assert(splitted_problem_list == expected_splitted_list)
+
+def test_split_if_possible_with_partially_identified_block_if_empty_after_at_distance_making_impossible_put_other_rule():
+    problem = Problem(Rule([3,1]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] + [Cell(CellState.empty)] + [Cell(CellState.undefined)])
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([3]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)]),\
+        Problem(rule = Rule([1]), cells = [Cell(CellState.empty)] + [Cell(CellState.undefined)])]
+    assert(splitted_problem_list == expected_splitted_list)
+
+def test_partially_identified_block_if_empty_at_start_extremity_splits():
+    problem = Problem(Rule([3]), cells = [Cell(CellState.undefined)] + [Cell(CellState.empty)] + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] * 2)
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([]), cells = [Cell(CellState.undefined)]),\
+        Problem(rule = Rule([3]), cells = [Cell(CellState.empty)] + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] * 2)]
+    assert(splitted_problem_list == expected_splitted_list)
+
+def test_partially_identified_block_if_empty_at_end_extremity_splits():
+    problem = Problem(Rule([3]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.empty)] + [Cell(CellState.undefined)])
+    splitted_problem_list = problem.split_if_possible()
+    expected_splitted_list = [Problem(rule = Rule([3]), cells = [Cell(CellState.undefined)] * 2 + [Cell(CellState.full,rule_element_index=0)]),\
+        Problem(rule = Rule([]), cells =  [Cell(CellState.empty)] + [Cell(CellState.undefined)])]
+    assert(splitted_problem_list == expected_splitted_list)
 
 def test_split_problem_with_empty_at_start():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.empty),Cell(CellState.empty),Cell(CellState.undefined)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([]), cells = [Cell(CellState.empty),Cell(CellState.empty)]),\
         Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)])]
     assert(splitted_problem_list == expected_splitted_list)
 
 def test_split_problem_with_empty_at_end():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.empty)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.undefined)]),\
         Problem(rule = Rule([]), cells = [Cell(CellState.empty),Cell(CellState.empty)])]
     assert(splitted_problem_list == expected_splitted_list)
 
 def test_splitting_problem_with_first_complete_full_block_starting_at_index_0():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)]),\
         Problem(rule = Rule([]), cells = [Cell(CellState.undefined)])]
     assert(splitted_problem_list == expected_splitted_list)
 
 def test_splitting_problem_with_first_complete_full_block_starting_at_index_max():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.full,rule_element_index=0)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([]), cells = [Cell(CellState.undefined)]),\
         Problem(rule = Rule([1]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0)])]
     assert(splitted_problem_list == expected_splitted_list)
 
 def test_split_problem_with_rule_element_indexes_splitted_reduces_the_rule_element_index_of_second_part_by_rule_len_of_first_part():
     problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty)]),\
         Problem(rule = Rule([1]), cells = [Cell(CellState.full, rule_element_index=0)])]
     assert(splitted_problem_list == expected_splitted_list)
 
 def test_split_problem_where_first_indexed_complete_full_block_is_in_the_middle_of_problem():
     problem = Problem(rule = Rule([1,1,1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined), Cell(CellState.empty),Cell(CellState.full,rule_element_index=1),Cell(CellState.empty),Cell(CellState.full,rule_element_index=2)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.undefined)]),\
         Problem(rule = Rule([1,1]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.full,rule_element_index=1)])]
     assert(splitted_problem_list == expected_splitted_list)
 
 def test_lol():
     problem = Problem(rule = Rule([2]), cells = [Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-    splitted_problem_list = problem.split()
+    splitted_problem_list = problem.split_if_possible()
     expected_splitted_list = [Problem(rule = Rule([]), cells = [Cell(CellState.empty)]),\
         Problem(rule = Rule([2]), cells = [Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])]
     assert(splitted_problem_list == expected_splitted_list)
-
-@pytest.mark.skip()
-def test_splitted_problem():
-    problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
-    splitted_problem  = Problem.get_splitted_problem(problem)
-    assert(splitted_problem == [])
 
 def test_solve_problem_with_split_needed_with_overlapping_in_second_part():
     problem = Problem(rule = Rule([1,2]), cells = [Cell(CellState.full,rule_element_index=0),Cell(CellState.empty), Cell(CellState.empty), Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])

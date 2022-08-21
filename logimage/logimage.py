@@ -1,5 +1,5 @@
 from logimage.cell import Cell, CellState, Grid
-from .problem import Problem, ProblemDict
+from .problem import Problem, ProblemDict ,InvalidProblem
 from logimage.rule import InvalidRule, RuleSet
 import copy
 import numpy as np

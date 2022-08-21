@@ -29,6 +29,8 @@ class Problem:
 
     def __init__(self, rule : Rule, cells):
         if rule.compute_min_possible_len() > len(cells):
+            print(rule)
+            print(cells)
             raise InvalidProblem("Rule minimum corresponding cells size exceeds input cells size")
         self.rule = rule
         self.cells = cells
@@ -90,10 +92,107 @@ class Problem:
             return True
         else:
             first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
-            if first_complete_full_block_with_rule_element_index is None:
-                return False
-            else:
+            if first_complete_full_block_with_rule_element_index is not  None:
                 return True
+            else:
+                return False
+
+    def split_when_first_or_last_cell_is_empty(self):
+        if (self.cells[0].cell_state == CellState.empty) or (self.cells[-1].cell_state == CellState.empty):
+            if self.cells[0].cell_state == CellState.empty:
+                numerized_series_list = pd.Series(self.numerize_cell_list())
+                first_non_empty_index = Problem.find_first_index_of_non_value(numerized_series_list,0)
+                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_non_empty_index,0)
+                return [first_part_problem, second_part_problem]
+            elif self.cells[-1].cell_state == CellState.empty:
+                reversed_numerized_series_list = pd.Series(self.numerize_cell_list()[::-1])
+                reversed_first_non_empty_index = Problem.find_first_index_of_non_value(reversed_numerized_series_list,0)
+                first_ending_empty_index = self.length - reversed_first_non_empty_index
+                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_ending_empty_index,len(self.rule)) 
+                return [first_part_problem, second_part_problem]
+        else:
+            return []
+    
+    def split_when_identified_complete_full_block(self):
+        first_complete_full_block_with_rule_element_index = self.get_first_complete_full_block_with_rule_element_index()
+        if first_complete_full_block_with_rule_element_index is not  None:
+            if first_complete_full_block_with_rule_element_index.initial_index == 0:
+                first_index_after_empty_index = first_complete_full_block_with_rule_element_index.block_len + 1
+                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(first_index_after_empty_index,1)
+            else:
+                empty_cell_before_complete_block_index = first_complete_full_block_with_rule_element_index.initial_index - 1
+                rule_index = self.cells[first_complete_full_block_with_rule_element_index.initial_index].rule_element_index
+                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(empty_cell_before_complete_block_index,rule_index)
+            return [first_part_problem, second_part_problem]
+        else:
+            return []
+
+    def split_when_gap_between_empty_and_identified_is_too_short_to_put_other_rule_element(self):
+        identified_cells_indexes = [index for index, cell in enumerate(self.cells)  if cell.rule_element_index is not None]
+        empty_cells_indexes = [index for index, cell in enumerate(self.cells) if cell.cell_state == CellState.empty]
+        if (identified_cells_indexes == []) or (empty_cells_indexes == []):
+            return []
+        else:
+            for empty_index in empty_cells_indexes:
+                if (empty_index - 1)  not in empty_cells_indexes:
+                    identified_cell_indexes_before_current_index = [index for index in identified_cells_indexes if index < empty_index]
+                    if identified_cell_indexes_before_current_index != []:
+                        max_index_of_identified_cell_before_current_index = max(identified_cell_indexes_before_current_index)
+                        rule_element_index = self.cells[max_index_of_identified_cell_before_current_index].rule_element_index
+                        if rule_element_index == len(self.rule) - 1:
+                            splitting_index = empty_index
+                            splitting_rule_element_index = len(self.rule)
+                            first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(splitting_index,splitting_rule_element_index)
+                            return [first_part_problem, second_part_problem]
+                        else:
+                            next_rule_element = self.rule[rule_element_index + 1]
+                            gap_len_between_identified_and_empty = empty_index - max_index_of_identified_cell_before_current_index - 1
+                            if gap_len_between_identified_and_empty < next_rule_element + 1:
+                                splitting_index = empty_index
+                                splitting_rule_element_index = rule_element_index + 1
+                                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(splitting_index,splitting_rule_element_index)
+                                return [first_part_problem, second_part_problem]
+                if (empty_index + 1 not in empty_cells_indexes):
+                    identified_cell_indexes_after_current_index = [index for index in identified_cells_indexes if index > empty_index]
+                    if identified_cell_indexes_after_current_index != []:
+                        min_index_of_identified_cell_after_current_index = min(identified_cell_indexes_after_current_index)
+                        rule_element_index = self.cells[min_index_of_identified_cell_after_current_index].rule_element_index
+                        if rule_element_index == 0:
+                            splitting_index = empty_index
+                            splitting_rule_element_index = 0
+                            first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(splitting_index,splitting_rule_element_index)
+                            return [first_part_problem, second_part_problem]
+                        else:
+                            last_rule_element = self.rule[rule_element_index - 1]
+                            gap_len_between_identified_and_empty = min_index_of_identified_cell_after_current_index - empty_index - 1
+                            if gap_len_between_identified_and_empty < last_rule_element + 1:
+                                splitting_index = empty_index
+                                splitting_rule_element_index = rule_element_index
+                                first_part_problem, second_part_problem = self.get_problem_parts_from_problem_when_splitted_at_index_at_rule_element_index(splitting_index,splitting_rule_element_index)
+                                return [first_part_problem, second_part_problem]
+        return []
+
+    def split_if_possible(self):
+        original_problem = copy.deepcopy(self)
+        if self.length == 1:
+            return [original_problem]
+        elif self.rule == []:
+            return [original_problem]
+        elif (len([cell for cell in self.cells if cell.cell_state == CellState.full]) == self.length) or \
+            (len([cell for cell in self.cells if cell.cell_state == CellState.empty]) == self.length):
+            return [original_problem]
+        else:
+            splitted_problem = self.split_when_first_or_last_cell_is_empty()
+            if len(splitted_problem) == 2:
+                return splitted_problem
+            splitted_problem = self.split_when_identified_complete_full_block()
+            if len(splitted_problem) == 2:
+                return splitted_problem
+            splitted_problem = self.split_when_gap_between_empty_and_identified_is_too_short_to_put_other_rule_element()
+            if len(splitted_problem) == 2:
+                return splitted_problem
+        return [original_problem]
+
 
     def get_first_complete_full_block_with_rule_element_index(self):
         complete_full_blocks = self.identify_complete_full_blocks()
@@ -240,7 +339,7 @@ class Problem:
             elif max_full_series_index == len(numerized_list_series) - 1:
                 if numerized_list_series[first_index_before_full_series] != 0:
                     list_of_incomplete_full_blocks.append(FullBlock(block_len=len(full_series),initial_index=full_series.index[0]))
-            elif (numerized_list_series[first_index_before_full_series] != 0) & (numerized_list_series[first_index_after_full_series] != 0):
+            elif (numerized_list_series[first_index_before_full_series] != 0) or (numerized_list_series[first_index_after_full_series] != 0):
                 list_of_incomplete_full_blocks.append(FullBlock(block_len=len(full_series),initial_index=full_series.index[0]))
         return list_of_incomplete_full_blocks
 
@@ -327,21 +426,34 @@ class Problem:
                 rule_element_indexes = self.associate_complete_full_block_with_rule_element_at_extremity(rule_element_indexes, list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index, block_index, full_block)
         return rule_element_indexes
 
-    def identify_rule_element_indexes(self):
-        rule_element_indexes = self.get_rule_element_indexes()
-        if len(self.rule) == 0:
-            return rule_element_indexes
-        if len(self.rule) == 1:
-            all_full_indexes = [index for index,cell in enumerate(self.cells) if cell.cell_state == CellState.full]
-            for index in all_full_indexes:
-                rule_element_indexes[index] = 0
-            return rule_element_indexes
-        rule_element_indexes = self.identify_rule_element_indexes_on_complete_blocks(rule_element_indexes)
-        numerized_series = pd.Series(self.numerize_cell_list())
-        first_full_index = Problem.find_first_index_of_value(numerized_series,1)
-        if first_full_index is not None:
-            rule_element_indexes = self.set_rule_element_to_0_if_space_between_start_and_first_empty_too_short_for_two_rule_elements(rule_element_indexes)
-            rule_element_indexes = self.set_rule_element_to_max_rule_element_index_if_space_between_last_empty_and_end_too_short_for_two_last_rule_elements(rule_element_indexes)
+    def identify_rule_element_indexes_when_part_of_block_is_identified(self, rule_element_indexes):
+        list_of_incomplete_full_blocks = self.identify_incomplete_full_blocks()
+        for incomplete_full_block in list_of_incomplete_full_blocks:
+            first_index = incomplete_full_block.initial_index
+            last_index = incomplete_full_block.initial_index + incomplete_full_block.block_len
+            rule_element_indexes_in_block = [value for value in rule_element_indexes[first_index:last_index] if value is not None]
+            number_of_defined_rule_elements = len(rule_element_indexes_in_block)
+            if (number_of_defined_rule_elements != 0) & (number_of_defined_rule_elements != incomplete_full_block.block_len):
+                for index in range(first_index,last_index):
+                    rule_element_indexes[index] = rule_element_indexes_in_block[0]
+        return rule_element_indexes
+
+    def identify_rule_element_indexes_when_gap_between_extremity_and_block_cannot_fit_first_or_last_rule_element(self, rule_element_indexes):
+        list_of_incomplete_full_blocks = self.identify_incomplete_full_blocks()
+        for incomplete_full_block in list_of_incomplete_full_blocks:
+            first_index = incomplete_full_block.initial_index
+            last_index = incomplete_full_block.initial_index + incomplete_full_block.block_len
+            gap_between_start_and_block = incomplete_full_block.initial_index
+            gap_between_end_and_last_block = self.length - incomplete_full_block.last_index
+            if gap_between_start_and_block < self.rule[0] + 1:
+                for index in range(first_index,last_index):
+                    rule_element_indexes[index] = 0
+            elif gap_between_end_and_last_block < self.rule[len(self.rule)-1] + 1:
+                for index in range(first_index,last_index):
+                    rule_element_indexes[index] = len(self.rule)-1
+        return rule_element_indexes
+
+    def identify_rule_element_indexes_when_max_rule_element_unique_and_incomplete_block_size_exceeds_second_max_rule_element(self, rule_element_indexes):
         list_of_incomplete_full_blocks = self.identify_incomplete_full_blocks()
         max_rule_element = max(self.rule)
         max_rule_element_index = [index for index, value in enumerate(self.rule) if value == max_rule_element][0]
@@ -362,9 +474,26 @@ class Problem:
                         if incomplete_full_block.block_len > second_max_rule_element:
                             for index in range(first_index,last_index):
                                 rule_element_indexes[index] = max_rule_element_index
-            elif number_of_defined_rule_elements != incomplete_full_block.block_len:
-                for index in range(first_index,last_index):
-                    rule_element_indexes[index] = rule_element_indexes_in_block[0]
+        return rule_element_indexes
+
+    def identify_rule_element_indexes(self):
+        rule_element_indexes = self.get_rule_element_indexes()
+        if len(self.rule) == 0:
+            return rule_element_indexes
+        if len(self.rule) == 1:
+            all_full_indexes = [index for index,cell in enumerate(self.cells) if cell.cell_state == CellState.full]
+            for index in all_full_indexes:
+                rule_element_indexes[index] = 0
+            return rule_element_indexes
+        rule_element_indexes = self.identify_rule_element_indexes_on_complete_blocks(rule_element_indexes)
+        numerized_series = pd.Series(self.numerize_cell_list())
+        first_full_index = Problem.find_first_index_of_value(numerized_series,1)
+        if first_full_index is not None:
+            rule_element_indexes = self.set_rule_element_to_0_if_space_between_start_and_first_empty_too_short_for_two_rule_elements(rule_element_indexes)
+            rule_element_indexes = self.set_rule_element_to_max_rule_element_index_if_space_between_last_empty_and_end_too_short_for_two_last_rule_elements(rule_element_indexes)
+        rule_element_indexes = self.identify_rule_element_indexes_when_part_of_block_is_identified(rule_element_indexes)
+        rule_element_indexes = self.identify_rule_element_indexes_when_gap_between_extremity_and_block_cannot_fit_first_or_last_rule_element(rule_element_indexes)
+        rule_element_indexes = self.identify_rule_element_indexes_when_max_rule_element_unique_and_incomplete_block_size_exceeds_second_max_rule_element(rule_element_indexes)
         return rule_element_indexes
     
     def update_rule_element_indexes(self, new_rule_element_indexes):
@@ -480,7 +609,7 @@ class Problem:
             first_rule_element_index = 0
         if cell_list[0].cell_state == CellState.full:
             return 0
-        first_undefined_index = cell_list.index(Cell(CellState.undefined))
+        first_undefined_index = next((index for index, cell in enumerate(cell_list) if cell.cell_state == CellState.undefined),None)
         first_full_index = next((index for index, cell in enumerate(cell_list) if cell.cell_state == CellState.full),None)
         if first_undefined_index is None:
             return 0
@@ -595,13 +724,69 @@ class Problem:
                 output_cells_list = self.fill_tail_of_cell_list_based_on_last_rule(output_cells_list,rule = self.rule,full_block = full_block)
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
-    
+
+    def complete_gaps_between_full_with_same_rule_element_index_solve(self):
+        output_cells_list = copy.deepcopy(self.cells)
+        for rule_element_index, rule_element in enumerate(self.rule):
+            indexes_with_rule_element =  [index for index,cell in enumerate(output_cells_list) if cell.rule_element_index == rule_element_index]
+            len_indexes_with_rule_element = len(indexes_with_rule_element)
+            if len_indexes_with_rule_element < 2:
+                continue
+            else:
+                gap_between_first_and_last_index = indexes_with_rule_element[-1] - indexes_with_rule_element[0]
+                if gap_between_first_and_last_index >= len_indexes_with_rule_element:
+                    for index in range(indexes_with_rule_element[0],indexes_with_rule_element[-1]):
+                        output_cells_list[index] = Cell(CellState.full,rule_element_index=rule_element_index)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
+
+    def incomplete_full_block_with_rule_element_has_rule_element_len_solve(self):
+        output_cells_list = copy.deepcopy(self.cells)
+        incomplete_full_blocks = self.identify_incomplete_full_blocks()
+        for incomplete_full_block in incomplete_full_blocks:
+            block_cells = output_cells_list[incomplete_full_block.initial_index:incomplete_full_block.last_index]
+            identified_cells = [cell for cell in block_cells if cell.rule_element_index is not None]
+            if len(identified_cells) > 0:
+                rule_element_index = identified_cells[0].rule_element_index
+                rule_element = self.rule[rule_element_index]
+                if incomplete_full_block.block_len == rule_element:
+                    if incomplete_full_block.initial_index >0:
+                        output_cells_list[incomplete_full_block.initial_index - 1] = Cell(CellState.empty)
+                    if incomplete_full_block.last_index < self.length:
+                        output_cells_list[incomplete_full_block.last_index] = Cell(CellState.empty)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
+
+    def fitting_big_rule_element_in_only_available_spot_solve(self):
+        output_cells_list = copy.deepcopy(self.cells)
+        list_of_not_blocks_without_empty = []
+        numerized_list_series = pd.Series(self.numerize_cell_list())
+        list_of_non_zero_series = Problem.find_series_without_value(numerized_list_series,0)
+        for non_zero_serie in list_of_non_zero_series:
+            list_of_not_blocks_without_empty.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
+        if len(self.rule) > 0:
+            max_rule_element = max(self.rule)
+            max_rule_element_indexes = [index for index, rule_element in enumerate(self.rule) if rule_element == max_rule_element]
+            if len(max_rule_element_indexes) == 1:
+                max_rule_element_index = max_rule_element_indexes[0]
+                eligibles_blocks_without_empty = [block for block in list_of_not_blocks_without_empty if (block.block_len >= max_rule_element)]
+                if len(eligibles_blocks_without_empty) == 1:
+                    eligible_block = eligibles_blocks_without_empty[0]
+                    if (eligible_block.block_len < max_rule_element * 2):
+                        max_overlap_index = eligible_block.initial_index + max_rule_element - 1
+                        min_overlap_index = eligible_block.last_index - max_rule_element
+                        for index in range(min_overlap_index,max_overlap_index + 1):
+                            output_cells_list[index] = Cell(CellState.full, rule_element_index=max_rule_element_index)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
+
+
     def solve(self):
         base_problem = copy.deepcopy(self)
         output_problem = copy.deepcopy(self)
         output_problem.identify_and_update_rule_element_indexes()
-        if output_problem.is_splittable():
-            splitted_problem = output_problem.split()
+        splitted_problem = output_problem.split_if_possible()
+        if len(splitted_problem) == 2:
             first_problem = splitted_problem[0]
             second_problem = splitted_problem[1]
             return first_problem.solve() + second_problem.solve()
@@ -615,13 +800,47 @@ class Problem:
             else:
                 if output_problem.is_subject_to_overlap_solving():
                     output_problem = output_problem.overlapping_solve()
+                #else:
+                    
                 output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
                 output_problem = output_problem.extremities_fill_empty_solve()
                 output_problem = output_problem.complete_extremities_full_block_solve()
+                output_problem = output_problem.complete_gaps_between_full_with_same_rule_element_index_solve()
+                output_problem = output_problem.incomplete_full_block_with_rule_element_has_rule_element_len_solve()
+                output_problem = output_problem.fitting_big_rule_element_in_only_available_spot_solve()
             if output_problem == base_problem:
                 return output_problem
             else:
                 return output_problem.solve()
+
+
+    # def solve_old(self):
+    #     base_problem = copy.deepcopy(self)
+    #     output_problem = copy.deepcopy(self)
+    #     output_problem.identify_and_update_rule_element_indexes()
+    #     if output_problem.is_splittable():
+    #         splitted_problem = output_problem.split()
+    #         first_problem = splitted_problem[0]
+    #         second_problem = splitted_problem[1]
+    #         return first_problem.solve_old() + second_problem.solve_old()
+    #     else:
+    #         if output_problem.is_solved():
+    #             return output_problem
+    #         elif output_problem.is_line_fully_defined_by_rule():
+    #             output_problem = output_problem.fully_defined_solve()
+    #         elif output_problem.all_full_cell_found():
+    #             output_problem = output_problem.all_full_cell_found_solve()
+    #         else:
+    #             if output_problem.is_subject_to_overlap_solving():
+    #                 output_problem = output_problem.overlapping_solve()
+    #             output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
+    #             output_problem = output_problem.extremities_fill_empty_solve()
+    #             output_problem = output_problem.complete_extremities_full_block_solve()
+    #             output_problem = output_problem.complete_gaps_between_full_with_same_rule_element_index_solve()
+    #         if output_problem == base_problem:
+    #             return output_problem
+    #         else:
+    #             return output_problem.solve_old()
     
     def solve_inplace(self):
         base_problem = copy.deepcopy(self)
