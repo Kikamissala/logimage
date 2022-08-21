@@ -696,11 +696,22 @@ def test_problem_with_big_block_that_can_only_fit_in_one_non_empty_block_and_can
     solved_problem = problem.fitting_big_rule_element_in_only_available_spot_solve()
     expected_cells = [Cell(CellState.empty)] +[Cell(CellState.undefined)] +  [Cell(CellState.empty)] + [Cell(CellState.undefined)] +  [Cell(CellState.empty)] + [Cell(CellState.full,rule_element_index=1)]*2
     assert(solved_problem.cells == expected_cells)
-# il faudrait aussi rajouter la possibilité de splitter le pb dans le cas où on a un vide et avant un full avec une cellule 
-# avec rule_element, et si l'espace entre le début et la case empty ne permet pas de recueillir plus d'indices que jusqu'au 
-# dernier identifié on peut splitter au niveau de l'empty.
-# il faudrait aussi rassembler is_splittable et le split en lui même.
 
+# Rajouter la règle selon laquelle si on a dans les blocs avec des règles identifiées, des blocs consécutifs
+# On peut ajouter des vides entre les 2 en imaginant la case la plus à droite du premier bloc, et celle là plus à gauche du suivant
+def test_problem_with_one_rule_and_identified_cell_fills_empty_outside_of_range():
+    problem = Problem(Rule([2]), cells = [Cell(CellState.undefined)]*2 +[Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.undefined)]* 3)
+    solved_problem = problem.fill_empty_between_indentified_blocks_solve()
+    print(solved_problem)
+    expected_cells = [Cell(CellState.empty)] +[Cell(CellState.undefined)] +  [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] +  [Cell(CellState.empty)] * 2
+    assert(solved_problem.cells == expected_cells)
+
+def test_problem_with_full_blocks_with_consecutive_rule_element_indexes_fills_out_of_range_gap_with_empty():
+    problem = Problem(Rule([2,2]), cells = [Cell(CellState.undefined)] +[Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.undefined)]* 3 +[Cell(CellState.full,rule_element_index=1)] + [Cell(CellState.undefined)])
+    solved_problem = problem.fill_empty_between_indentified_blocks_solve()
+    print(solved_problem)
+    expected_cells = [Cell(CellState.undefined)] +[Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.undefined)] + [Cell(CellState.empty)] + [Cell(CellState.undefined)]  +[Cell(CellState.full,rule_element_index=1)] + [Cell(CellState.undefined)]
+    assert(solved_problem.cells == expected_cells)
 
 def test_solving_of_already_solved_problem_returns_problem():
     problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full,rule_element_index=0)])
@@ -927,7 +938,7 @@ def test_solve_problem_with_split_needed_with_overlapping_in_second_part():
 def test_solve_problem_with_split_needed_with_extremity_full_completing_in_second_part():
     problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
     solved_problem = problem.solve()
-    expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.undefined)])
+    expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.empty)])
     assert(solved_problem == expected_problem)
 
 def test_solve_with_full_block_size_equal_max_rule_size():
@@ -937,7 +948,7 @@ def test_solve_with_full_block_size_equal_max_rule_size():
 def test_solve_inplace_problem_with_split_needed_with_extremity_full_completing_in_second_part():
     problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.undefined),Cell(CellState.undefined)])
     problem.solve_inplace()
-    expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.undefined)])
+    expected_problem = Problem(rule = Rule([2,3]), cells = [Cell(CellState.empty),Cell(CellState.full,rule_element_index=0),Cell(CellState.full,rule_element_index=0),Cell(CellState.empty),Cell(CellState.undefined),Cell(CellState.full, rule_element_index=1),Cell(CellState.full,rule_element_index=1),Cell(CellState.undefined),Cell(CellState.empty)])
     assert(problem == expected_problem)
 
 def test_problem_dict_from_list_of_problems():

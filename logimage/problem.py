@@ -29,8 +29,6 @@ class Problem:
 
     def __init__(self, rule : Rule, cells):
         if rule.compute_min_possible_len() > len(cells):
-            print(rule)
-            print(cells)
             raise InvalidProblem("Rule minimum corresponding cells size exceeds input cells size")
         self.rule = rule
         self.cells = cells
@@ -313,7 +311,15 @@ class Problem:
         else:
             last_undefined_index = max_index - first_reversed_undefined_index
             return last_undefined_index
-             
+
+    def identify_full_blocks(self):
+        list_of_full_blocks = []
+        numerized_list_series = pd.Series(self.numerize_cell_list())
+        list_of_consecutive_full_series = Problem.find_series_with_unique_value(numerized_list_series,1)
+        for non_zero_serie in list_of_consecutive_full_series:
+            list_of_full_blocks.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
+        return list_of_full_blocks
+
     def identify_complete_full_blocks(self):
         list_of_identified_full_blocks = []
         numerized_list_series = pd.Series(self.numerize_cell_list())
@@ -780,6 +786,44 @@ class Problem:
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
 
+    def get_rule_element_index_from_full_block(self,full_block,cells_list):
+        rule_element_list = [cell.rule_element_index for cell in cells_list[full_block.initial_index:full_block.last_index] if cell.rule_element_index is not None]
+        rule_element = rule_element_list[0]
+        return rule_element
+
+    def fill_empty_between_indentified_blocks_solve(self):
+        output_cells_list = copy.deepcopy(self.cells)
+        full_blocks = self.identify_full_blocks()
+        full_blocks = sorted(full_blocks, key=lambda d: d.initial_index)
+        list_of_full_blocks_with_rule_element = []
+        for full_block in full_blocks:
+            list_of_identified_cells = [cell for cell in output_cells_list[full_block.initial_index:full_block.last_index] if cell.rule_element_index is not None]
+            if len(list_of_identified_cells) > 0:
+                list_of_full_blocks_with_rule_element.append(full_block)
+        for index, full_block in enumerate(list_of_full_blocks_with_rule_element):
+            rule_element_index = self.get_rule_element_index_from_full_block(full_block, output_cells_list)
+            if rule_element_index is not None:
+                if rule_element_index == 0:
+                    min_start_index_of_block = max(full_block.last_index - self.rule[rule_element_index],0)
+                    if min_start_index_of_block > 0:
+                        for cell_index in range(0,min_start_index_of_block):
+                            output_cells_list[cell_index] = Cell(CellState.empty)
+                if rule_element_index == len(self.rule) - 1:
+                    max_end_index_of_block = min(full_block.initial_index + self.rule[rule_element_index]-1,self.length - 1)
+                    if max_end_index_of_block < self.length - 1:
+                        for cell_index in range(max_end_index_of_block + 1,self.length):
+                            output_cells_list[cell_index] = Cell(CellState.empty)
+                if index < len(list_of_full_blocks_with_rule_element) - 1:
+                    next_full_block = list_of_full_blocks_with_rule_element[index + 1]
+                    next_rule_element_index =  self.get_rule_element_index_from_full_block(next_full_block, output_cells_list)
+                    if next_rule_element_index == rule_element_index + 1:
+                        max_end_index_of_block = full_block.initial_index + self.rule[rule_element_index]-1
+                        min_index_of_next_block = next_full_block.last_index - self.rule[next_rule_element_index]
+                        if min_index_of_next_block > max_end_index_of_block:
+                            for cell_index in range(max_end_index_of_block + 1, min_index_of_next_block):
+                                output_cells_list[cell_index] = Cell(CellState.empty)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
 
     def solve(self):
         base_problem = copy.deepcopy(self)
@@ -808,39 +852,11 @@ class Problem:
                 output_problem = output_problem.complete_gaps_between_full_with_same_rule_element_index_solve()
                 output_problem = output_problem.incomplete_full_block_with_rule_element_has_rule_element_len_solve()
                 output_problem = output_problem.fitting_big_rule_element_in_only_available_spot_solve()
+                output_problem = output_problem.fill_empty_between_indentified_blocks_solve()
             if output_problem == base_problem:
                 return output_problem
             else:
                 return output_problem.solve()
-
-
-    # def solve_old(self):
-    #     base_problem = copy.deepcopy(self)
-    #     output_problem = copy.deepcopy(self)
-    #     output_problem.identify_and_update_rule_element_indexes()
-    #     if output_problem.is_splittable():
-    #         splitted_problem = output_problem.split()
-    #         first_problem = splitted_problem[0]
-    #         second_problem = splitted_problem[1]
-    #         return first_problem.solve_old() + second_problem.solve_old()
-    #     else:
-    #         if output_problem.is_solved():
-    #             return output_problem
-    #         elif output_problem.is_line_fully_defined_by_rule():
-    #             output_problem = output_problem.fully_defined_solve()
-    #         elif output_problem.all_full_cell_found():
-    #             output_problem = output_problem.all_full_cell_found_solve()
-    #         else:
-    #             if output_problem.is_subject_to_overlap_solving():
-    #                 output_problem = output_problem.overlapping_solve()
-    #             output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
-    #             output_problem = output_problem.extremities_fill_empty_solve()
-    #             output_problem = output_problem.complete_extremities_full_block_solve()
-    #             output_problem = output_problem.complete_gaps_between_full_with_same_rule_element_index_solve()
-    #         if output_problem == base_problem:
-    #             return output_problem
-    #         else:
-    #             return output_problem.solve_old()
     
     def solve_inplace(self):
         base_problem = copy.deepcopy(self)
@@ -866,6 +882,7 @@ class Problem:
                 output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
                 output_problem = output_problem.extremities_fill_empty_solve()
                 output_problem = output_problem.complete_extremities_full_block_solve()
+                output_problem = output_problem.fill_empty_between_indentified_blocks_solve()
         if output_problem == base_problem:
             return
         else:
