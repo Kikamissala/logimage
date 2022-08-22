@@ -763,6 +763,39 @@ class Problem:
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
 
+    def fitting_big_rule_element_in_only_available_spot_solve_new(self):
+        output_cells_list = copy.deepcopy(self.cells)
+        list_of_not_blocks_without_empty = []
+        numerized_list_series = pd.Series(self.numerize_cell_list())
+        list_of_non_zero_series = Problem.find_series_without_value(numerized_list_series,0)
+        for non_zero_serie in list_of_non_zero_series:
+            list_of_not_blocks_without_empty.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
+        if len(self.rule) > 0:
+            for index,rule_element in enumerate(self.rule):
+                if index == 0:
+                    min_cell_index_of_first_cell = 0
+                    min_cell_index_of_last_cell = "todo"
+                else:
+                    min_cell_index_of_first_cell = self.rule[:index].compute_min_possible_len() + 1
+                if index == len(self.rule) - 1:
+                    max_cell_index_of_first_cell = self.length - rule_element
+                min_cell_index_of_first_cell = self.rule[:index].compute_min_possible_len() + 1
+                max_cell_index_of_first_cell = self.length - self.rule[index:].compute_min_possible_len()
+            max_rule_element = max(self.rule)
+            max_rule_element_indexes = [index for index, rule_element in enumerate(self.rule) if rule_element == max_rule_element]
+            if len(max_rule_element_indexes) == 1:
+                max_rule_element_index = max_rule_element_indexes[0]
+                eligibles_blocks_without_empty = [block for block in list_of_not_blocks_without_empty if (block.block_len >= max_rule_element)]
+                if len(eligibles_blocks_without_empty) == 1:
+                    eligible_block = eligibles_blocks_without_empty[0]
+                    if (eligible_block.block_len < max_rule_element * 2):
+                        max_overlap_index = eligible_block.initial_index + max_rule_element - 1
+                        min_overlap_index = eligible_block.last_index - max_rule_element
+                        for index in range(min_overlap_index,max_overlap_index + 1):
+                            output_cells_list[index] = Cell(CellState.full, rule_element_index=max_rule_element_index)
+        solved_problem = self.update_cells_list(output_cells_list)
+        return solved_problem
+
     def fitting_big_rule_element_in_only_available_spot_solve(self):
         output_cells_list = copy.deepcopy(self.cells)
         list_of_not_blocks_without_empty = []
