@@ -772,15 +772,29 @@ class Problem:
             list_of_not_blocks_without_empty.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
         if len(self.rule) > 0:
             for index,rule_element in enumerate(self.rule):
+                list_of_eligible_blocks = [block for block in list_of_not_blocks_without_empty if block.block_len >= rule_element]
                 if index == 0:
                     min_cell_index_of_first_cell = 0
-                    min_cell_index_of_last_cell = "todo"
+                    #min_cell_index_of_last_cell = self.rule - 1
                 else:
-                    min_cell_index_of_first_cell = self.rule[:index].compute_min_possible_len() + 1
+                    min_cell_index_of_first_cell = self.rule[:index].compute_min_possible_len() + 1 
+                    #min_cell_index_of_last_cell = self.rule[:index].compute_min_possible_len() + self.rule[index]
                 if index == len(self.rule) - 1:
-                    max_cell_index_of_first_cell = self.length - rule_element
-                min_cell_index_of_first_cell = self.rule[:index].compute_min_possible_len() + 1
-                max_cell_index_of_first_cell = self.length - self.rule[index:].compute_min_possible_len()
+                    max_cell_index_of_last_cell = self.length - 1
+                else:
+                    max_cell_index_of_last_cell = (self.length - 1) - (self.rule[index+1:].compute_min_possible_len() - 1)
+                list_of_eligible_blocks_for_rule_limit_indexes = [block for block in list_of_eligible_blocks if (block.last_index -1 > min_cell_index_of_first_cell) \
+                     & (block.initial_index < max_cell_index_of_last_cell)]
+                list_of_final_eligible_block_with_min_max_index = []
+                for block in list_of_eligible_blocks_for_rule_limit_indexes:
+                    min_starting_index = max(block.initial_index, min_cell_index_of_first_cell)
+                    max_ending_index = min(block.last_index - 1, max_cell_index_of_last_cell)
+                    residual_block_len = max_ending_index - min_starting_index
+                    if residual_block_len > rule_element:
+                        dict_to_append = {"block":block,"min_index":min_starting_index,"max_index":max_ending_index}
+                        list_of_final_eligible_block_with_min_max_index.append(dict_to_append)
+                if len(list_of_final_eligible_block_with_min_max_index) == 1:
+                    
             max_rule_element = max(self.rule)
             max_rule_element_indexes = [index for index, rule_element in enumerate(self.rule) if rule_element == max_rule_element]
             if len(max_rule_element_indexes) == 1:
