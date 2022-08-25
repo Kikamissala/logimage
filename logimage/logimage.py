@@ -100,10 +100,10 @@ class LogimageProblems:
 
     def solve_problem(self, dimension, index):
         problem_to_solve = self.__getitem__(dimension)[index]
-        try:
-            solved_problem = problem_to_solve.solve()
-        except InvalidProblem:
-            print(problem_to_solve)
+        # try:
+        solved_problem = problem_to_solve.solve()
+        # except InvalidProblem:
+        #     print(problem_to_solve)
         self.__setitem__(pos = (dimension,index),value=solved_problem)
         problem_coordinates = ProblemCoordinates(dimension,index)
         if problem_coordinates in self.candidate_problems:

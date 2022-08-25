@@ -702,14 +702,12 @@ def test_problem_with_big_block_that_can_only_fit_in_one_non_empty_block_and_can
 def test_problem_with_one_rule_and_identified_cell_fills_empty_outside_of_range():
     problem = Problem(Rule([2]), cells = [Cell(CellState.undefined)]*2 +[Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.undefined)]* 3)
     solved_problem = problem.fill_empty_between_indentified_blocks_solve()
-    print(solved_problem)
     expected_cells = [Cell(CellState.empty)] +[Cell(CellState.undefined)] +  [Cell(CellState.full,rule_element_index=0)] + [Cell(CellState.undefined)] +  [Cell(CellState.empty)] * 2
     assert(solved_problem.cells == expected_cells)
 
 def test_problem_with_full_blocks_with_consecutive_rule_element_indexes_fills_out_of_range_gap_with_empty():
     problem = Problem(Rule([2,2]), cells = [Cell(CellState.undefined)] +[Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.undefined)]* 3 +[Cell(CellState.full,rule_element_index=1)] + [Cell(CellState.undefined)])
     solved_problem = problem.fill_empty_between_indentified_blocks_solve()
-    print(solved_problem)
     expected_cells = [Cell(CellState.undefined)] +[Cell(CellState.full,rule_element_index=0)] +  [Cell(CellState.undefined)] + [Cell(CellState.empty)] + [Cell(CellState.undefined)]  +[Cell(CellState.full,rule_element_index=1)] + [Cell(CellState.undefined)]
     assert(solved_problem.cells == expected_cells)
 

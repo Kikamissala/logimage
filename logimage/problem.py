@@ -763,53 +763,6 @@ class Problem:
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
 
-    def fitting_big_rule_element_in_only_available_spot_solve_new(self):
-        output_cells_list = copy.deepcopy(self.cells)
-        list_of_not_blocks_without_empty = []
-        numerized_list_series = pd.Series(self.numerize_cell_list())
-        list_of_non_zero_series = Problem.find_series_without_value(numerized_list_series,0)
-        for non_zero_serie in list_of_non_zero_series:
-            list_of_not_blocks_without_empty.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
-        if len(self.rule) > 0:
-            for index,rule_element in enumerate(self.rule):
-                list_of_eligible_blocks = [block for block in list_of_not_blocks_without_empty if block.block_len >= rule_element]
-                if index == 0:
-                    min_cell_index_of_first_cell = 0
-                    #min_cell_index_of_last_cell = self.rule - 1
-                else:
-                    min_cell_index_of_first_cell = self.rule[:index].compute_min_possible_len() + 1 
-                    #min_cell_index_of_last_cell = self.rule[:index].compute_min_possible_len() + self.rule[index]
-                if index == len(self.rule) - 1:
-                    max_cell_index_of_last_cell = self.length - 1
-                else:
-                    max_cell_index_of_last_cell = (self.length - 1) - (self.rule[index+1:].compute_min_possible_len() - 1)
-                list_of_eligible_blocks_for_rule_limit_indexes = [block for block in list_of_eligible_blocks if (block.last_index -1 > min_cell_index_of_first_cell) \
-                     & (block.initial_index < max_cell_index_of_last_cell)]
-                list_of_final_eligible_block_with_min_max_index = []
-                for block in list_of_eligible_blocks_for_rule_limit_indexes:
-                    min_starting_index = max(block.initial_index, min_cell_index_of_first_cell)
-                    max_ending_index = min(block.last_index - 1, max_cell_index_of_last_cell)
-                    residual_block_len = max_ending_index - min_starting_index
-                    if residual_block_len > rule_element:
-                        dict_to_append = {"block":block,"min_index":min_starting_index,"max_index":max_ending_index}
-                        list_of_final_eligible_block_with_min_max_index.append(dict_to_append)
-                if len(list_of_final_eligible_block_with_min_max_index) == 1:
-                    
-            max_rule_element = max(self.rule)
-            max_rule_element_indexes = [index for index, rule_element in enumerate(self.rule) if rule_element == max_rule_element]
-            if len(max_rule_element_indexes) == 1:
-                max_rule_element_index = max_rule_element_indexes[0]
-                eligibles_blocks_without_empty = [block for block in list_of_not_blocks_without_empty if (block.block_len >= max_rule_element)]
-                if len(eligibles_blocks_without_empty) == 1:
-                    eligible_block = eligibles_blocks_without_empty[0]
-                    if (eligible_block.block_len < max_rule_element * 2):
-                        max_overlap_index = eligible_block.initial_index + max_rule_element - 1
-                        min_overlap_index = eligible_block.last_index - max_rule_element
-                        for index in range(min_overlap_index,max_overlap_index + 1):
-                            output_cells_list[index] = Cell(CellState.full, rule_element_index=max_rule_element_index)
-        solved_problem = self.update_cells_list(output_cells_list)
-        return solved_problem
-
     def fitting_big_rule_element_in_only_available_spot_solve(self):
         output_cells_list = copy.deepcopy(self.cells)
         list_of_not_blocks_without_empty = []
@@ -818,18 +771,36 @@ class Problem:
         for non_zero_serie in list_of_non_zero_series:
             list_of_not_blocks_without_empty.append(FullBlock(block_len=len(non_zero_serie),initial_index=non_zero_serie.index[0]))
         if len(self.rule) > 0:
-            max_rule_element = max(self.rule)
-            max_rule_element_indexes = [index for index, rule_element in enumerate(self.rule) if rule_element == max_rule_element]
-            if len(max_rule_element_indexes) == 1:
-                max_rule_element_index = max_rule_element_indexes[0]
-                eligibles_blocks_without_empty = [block for block in list_of_not_blocks_without_empty if (block.block_len >= max_rule_element)]
-                if len(eligibles_blocks_without_empty) == 1:
-                    eligible_block = eligibles_blocks_without_empty[0]
-                    if (eligible_block.block_len < max_rule_element * 2):
-                        max_overlap_index = eligible_block.initial_index + max_rule_element - 1
-                        min_overlap_index = eligible_block.last_index - max_rule_element
+            for rule_element_index,rule_element in enumerate(self.rule):
+                list_of_eligible_blocks = [block for block in list_of_not_blocks_without_empty if block.block_len >= rule_element]
+                if rule_element_index == 0:
+                    min_cell_index_of_first_cell = 0
+                else:
+                    min_cell_index_of_first_cell = self.rule[:rule_element_index].compute_min_possible_len() + 1 
+                if rule_element_index == len(self.rule) - 1:
+                    max_cell_index_of_last_cell = self.length - 1
+                else:
+                    max_cell_index_of_last_cell = (self.length - 1) - (self.rule[rule_element_index+1:].compute_min_possible_len())
+                list_of_eligible_blocks_for_rule_limit_indexes = [block for block in list_of_eligible_blocks if (block.last_index -1 >= min_cell_index_of_first_cell) \
+                     & (block.initial_index <= max_cell_index_of_last_cell)]
+                list_of_final_eligible_block_with_min_max_index = []
+                for block in list_of_eligible_blocks_for_rule_limit_indexes:
+                    min_starting_index = max(block.initial_index, min_cell_index_of_first_cell)
+                    max_ending_index = min(block.last_index - 1, max_cell_index_of_last_cell)
+                    residual_block_len = max_ending_index + 1 - min_starting_index
+                    if residual_block_len >= rule_element:
+                        dict_to_append = {"block":block,"min_index":min_starting_index,"max_index":max_ending_index}
+                        list_of_final_eligible_block_with_min_max_index.append(dict_to_append)
+                if len(list_of_final_eligible_block_with_min_max_index) == 1:
+                    min_starting_index = dict_to_append["min_index"]
+                    max_ending_index = dict_to_append["max_index"]
+                    eligible_block = dict_to_append["block"]
+                    residual_block_len = max_ending_index + 1 - min_starting_index
+                    if residual_block_len < rule_element * 2:
+                        max_overlap_index = min_starting_index + rule_element - 1
+                        min_overlap_index = max_ending_index + 1 - rule_element
                         for index in range(min_overlap_index,max_overlap_index + 1):
-                            output_cells_list[index] = Cell(CellState.full, rule_element_index=max_rule_element_index)
+                            output_cells_list[index] = Cell(CellState.full, rule_element_index=rule_element_index) 
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
 
@@ -890,9 +861,7 @@ class Problem:
                 output_problem = output_problem.all_full_cell_found_solve()
             else:
                 if output_problem.is_subject_to_overlap_solving():
-                    output_problem = output_problem.overlapping_solve()
-                #else:
-                    
+                    output_problem = output_problem.overlapping_solve()   
                 output_problem = output_problem.complete_full_blocks_with_max_rule_size_solve()
                 output_problem = output_problem.extremities_fill_empty_solve()
                 output_problem = output_problem.complete_extremities_full_block_solve()

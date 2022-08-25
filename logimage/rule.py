@@ -25,6 +25,13 @@ class Rule(list):
         else:
             start_index_of_index_2 = self[0] + 1
             return [0] + list(map(lambda x: x + start_index_of_index_2, Rule(self[1:]).compute_min_starting_indexes()))
+    
+    def __getitem__(self,index):
+        return_value = super().__getitem__(index)
+        if isinstance(return_value,list):
+            return Rule(return_value)
+        else:
+            return super().__getitem__(index)
 
 class RuleList(list):
     
