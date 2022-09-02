@@ -16,7 +16,7 @@ def test_problem_contains_rule_and_list_of_cells_and_numerized_list_is_None_when
     assert(numerized_cell_list == [-1,-1,-1])
 
 def test_problem_numerized_list_is_ones_when_full():
-    problem = Problem(rule = Rule([1,1]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.full)])
+    problem = Problem(rule = Rule([3]), cells = [Cell(CellState.full), Cell(CellState.full), Cell(CellState.full)])
     numerized_cell_list = problem.numerize_cell_list()
     assert(numerized_cell_list == [1,1,1])
 
@@ -559,7 +559,7 @@ def test_get_incomplete_full_blocks_from_problem_with_2_full_one_undefined_retur
     assert(incomplete_full_blocks == [FullBlock(block_len=2,initial_index=0)])
 
 def test_get_incomplete_full_blocks_from_problem_with_2_full_one_undefined_and_one_full_returns_2_full_block():
-    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.full)])
+    problem = Problem(rule = Rule([2,1]), cells = [Cell(CellState.full),Cell(CellState.full),Cell(CellState.undefined),Cell(CellState.full)])
     incomplete_full_blocks = problem.identify_incomplete_full_blocks()
     assert(incomplete_full_blocks == [FullBlock(block_len=2,initial_index=0),FullBlock(block_len=1,initial_index=3)])
 
@@ -1002,10 +1002,10 @@ def test_assigning_incompatible_problem_raises():
         problem_dict[0] = problem_to_assign
 
 def test_assigning_problem_with_different_rule_raise():
-    problem = Problem(rule = Rule([1]), cells = [Cell(CellState.full)])
-    problem1 = Problem(rule = Rule([1]), cells = [Cell()])
+    problem = Problem(rule = Rule([2]), cells = [Cell(CellState.full),Cell(CellState.full)])
+    problem1 = Problem(rule = Rule([2]), cells = [Cell(),Cell(CellState.full)])
     problem_dict = ProblemDict(problems = [problem, problem1])
-    problem_to_assign = Problem(rule = Rule([]), cells = [Cell(CellState.full)])
+    problem_to_assign = Problem(rule = Rule([1]), cells = [Cell(CellState.full),Cell()])
     with pytest.raises(InvalidProblemDictAssignment) as err:
         problem_dict[0] = problem_to_assign
 

@@ -31,6 +31,8 @@ class Problem:
         if rule.compute_min_possible_len() > len(cells):
             raise InvalidProblem("Rule minimum corresponding cells size exceeds input cells size")
         self.rule = rule
+        if sum(self.rule) < sum([1 for cell in cells if cell.cell_state == CellState.full]):
+            raise InvalidProblem("More full cells in cell_list than in rule")
         self.cells = cells
         self.length = len(self.cells)
         self.rule_elements_indexes = self.get_rule_element_indexes()
@@ -68,7 +70,7 @@ class Problem:
             try:
                 self.cells[index].raise_if_update_impossible(value)
             except InvalidCellStateModification:
-                raise InvalidProblem("unable to modify cell")
+                raise InvalidProblem("unable to modify cell") from None
         self.cells[index] = value
 
     def __eq__(self,other):
@@ -950,13 +952,13 @@ class ProblemDict:
 
     def __setitem__(self, index, value:Problem):
         if value.rule != self.problems[index].rule:
-            raise InvalidProblemDictAssignment("new problem doesn't have the same rules")
+            raise InvalidProblemDictAssignment("new problem doesn't have the same rules") from None
         new_problem_cells = value.cells
         for i, cell in enumerate(new_problem_cells):
             try:
                 self.problems[index][i] = cell
             except InvalidProblem:
-                raise InvalidProblemDictAssignment("new problem cells incompatible with old ones")
+                raise InvalidProblemDictAssignment("new problem cells incompatible with old ones") from None
     
     def __len__(self):
         return len(self.problems)
