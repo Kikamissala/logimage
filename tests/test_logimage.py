@@ -236,6 +236,13 @@ def test_render_grid_displays_grid():
 def test_reconstruct_resolution_shows_evolution_of_resolution_from_history():
     pass
 
+def test_compute_solving_percentage():
+    rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
+    logimage_problems = LogimageProblems(rule_set=rule_set)
+    logimage_problems[0,0] = Problem(rule = Rule([1]),cells = [Cell(CellState.full),Cell(CellState.undefined)])
+    percentage = logimage_problems.compute_solving_percentage()
+    assert(percentage == 25)
+
 def test_get_guess_candidate_finds_problem_coordinates_and_cell_index_when_changed_index_is_first_index():
     rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
     logimage_problems = LogimageProblems(rule_set=rule_set)

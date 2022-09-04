@@ -84,6 +84,7 @@ class Logimage:
                 self.logimage_problems = copy.deepcopy(new_logimage_problems)
             else:
                 if self.logimage_problems.solved != True:
+                    print(self.logimage_problems.compute_solving_percentage())
                     self.add_new_guess()
                     guess_to_try = copy.deepcopy(self.guess_list[-1])
                     new_logimage_problems = copy.deepcopy(guess_to_try.logimage_problems)
@@ -318,6 +319,13 @@ class LogimageProblems:
         modifications_to_scan = [modification for modification in self.modifications if modification.problem_coordinates == problem_with_least_undefined_coordinates]
         problem_coordinates, undefined_cell_index = self.get_guess_candidate_in_modifications(modifications_to_scan)
         return problem_coordinates, undefined_cell_index
+    
+    def compute_solving_percentage(self):
+        number_of_cells_in_logimage = len(self.row_problems) * len(self.column_problems)
+        number_of_unsolved_cells = sum([problem.get_number_of_cell_in_state(CellState.undefined) for problem_index,problem in self.row_problems.items()])
+        number_of_solved_cells = number_of_cells_in_logimage - number_of_unsolved_cells
+        solving_percentage = (number_of_solved_cells / number_of_cells_in_logimage) * 100
+        return solving_percentage
 
     def solve(self):
         self.scan_fully_defined_problems()
