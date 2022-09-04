@@ -7,7 +7,7 @@ def solve_logimage(file_path):
     file_path =os.path.abspath(file_path)
 
     rule_set = FileReader(file_path).read_file()
-    logimage = Logimage(rules=rule_set)
+    logimage = Logimage(rules=rule_set,guessing_heuristic="least_undefined")
     logimage.solve()
     logimage.plot_grid()
 
