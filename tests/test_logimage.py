@@ -154,7 +154,7 @@ def test_create_modification_and_apply_it_to_logimage_problems():
     logimage_problems = LogimageProblems(rule_set = rule_set)
     modification = Modification(problem_coordinates = ProblemCoordinates(0,0), cell_index = 0, new_cell = Cell(CellState.full, rule_element_index = 1))
     logimage_problems.modify(modification)
-    assert(logimage_problems[0][0][0] == Cell(CellState.full,rule_element_index=1))
+    assert((logimage_problems[0][0][0] == Cell(CellState.full,rule_element_index=1)) & (len(logimage_problems.modifications) == 1))
 
 @pytest.mark.skip()
 def test_run_solve_appends_resolution_history_with_modified_state_cells():
@@ -264,6 +264,18 @@ def test_get_guess_candidate_finds_problem_coordinates_and_cell_index_no_modific
     problem_coordinates, cell_index = logimage_problems.get_guess_candidate()
     assert((problem_coordinates == ProblemCoordinates(0,0)) & (cell_index == 0))
 
+def test_find_problem_with_least_undefined():
+    rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
+    logimage_problems = LogimageProblems(rule_set=rule_set)
+    logimage_problems[0,0] = Problem(rule = Rule([1]),cells = [Cell(CellState.undefined),Cell(CellState.full)])
+    candidate_problem_coordinates = logimage_problems.find_problem_coordinates_with_least_undefined()
+    assert(candidate_problem_coordinates == ProblemCoordinates(0,0))
+
+def test_guess_candidate_with_strategy_of_choosing_the_problem_with_least_undefined():
+    rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
+    logimage_problems = LogimageProblems(rule_set=rule_set)
+    problem_coordinates, cell_index = logimage_problems.get_guess_candidate(heuristic="least_undefined")
+    assert((problem_coordinates == ProblemCoordinates(0,0)) & (cell_index == 0))
 
 def test_guess_chooses_last_modified_problem_with_undefined_cell_and_chooses_first_cell_close_to_defined_cell():
     rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
@@ -310,6 +322,14 @@ def test_change_try_last_guess_modifies_last_guess_in_guess_list():
     expected_guess = Guess(logimage.logimage_problems,Modification(ProblemCoordinates(0,0),0,Cell(CellState.full)))
     expected_guess.change_try()
     assert((len(logimage.guess_list) == 1) & (logimage.guess_list[0] == expected_guess))
+
+def test_change_try_last_guess_in_guess_list_with_1_guess_already_max_try_raises():
+    rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))
+    logimage = Logimage(rules = rule_set)
+    logimage.add_new_guess()
+    logimage.change_try_last_guess()
+    with pytest.raises(NoGuessLeft) as err:
+        logimage.change_try_last_guess()
 
 def test_change_try_last_guess_in_guess_list_with_1_guess_already_max_try_raises():
     rule_set = RuleSet(row_rules=RuleList([Rule([1]),Rule([1])]),column_rules=RuleList([Rule([1]),Rule([1])]))

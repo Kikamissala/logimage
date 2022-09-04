@@ -11,13 +11,14 @@ class NoGuessLeft(Exception):
 
 class Logimage:
     
-    def __init__(self, rules : RuleSet):
+    def __init__(self, rules : RuleSet, guessing_heuristic = "last_modifications"):
         self.rules = rules
         self.grid = Grid(len(rules.row_rules), len(rules.column_rules))
         self.raise_if_rules_invalid()
         self.logimage_problems = LogimageProblems(rule_set=rules)
         self.guess_list = []
         self.solved = False
+        self.guessing_heuristic = guessing_heuristic
 
     def is_rule_exceeding_grid_size(self):
         maximum_minimum_possible_len_row = self.rules.column_rules.compute_maximum_minimum_possible_len()
@@ -39,7 +40,7 @@ class Logimage:
             self.grid[row_index,:] = np.array(numerized_cells)
     
     def create_guess(self):
-        problem_coordinates, modification_cell_index = self.logimage_problems.get_guess_candidate()
+        problem_coordinates, modification_cell_index = self.logimage_problems.get_guess_candidate(self.guessing_heuristic)
         modification = Modification(problem_coordinates,modification_cell_index,Cell(CellState.full))
         guess = Guess(self.logimage_problems,modification)
         return guess
@@ -57,7 +58,6 @@ class Logimage:
                 raise NoGuessLeft("All guess possibilities tried for first guess, unable to solve") from None
             else:
                 self.guess_list = self.guess_list[:-1]
-                print(len(self.guess_list))
                 self.change_try_last_guess()
                 return
         self.guess_list = self.guess_list[:-1] + [last_guess]
@@ -76,18 +76,15 @@ class Logimage:
                 try:
                     self.change_try_last_guess()
                 except NoGuessLeft:
-                    print("unsolvable problem")
                     self.solved = False
                     return
                 guess_to_try = copy.deepcopy(self.guess_list[-1])
-                print(self.guess_list[-1].modification)
                 new_logimage_problems = copy.deepcopy(guess_to_try.logimage_problems)
                 new_logimage_problems.modify(guess_to_try.modification)
                 self.logimage_problems = copy.deepcopy(new_logimage_problems)
             else:
                 if self.logimage_problems.solved != True:
                     self.add_new_guess()
-                    print(self.guess_list[-1].modification)
                     guess_to_try = copy.deepcopy(self.guess_list[-1])
                     new_logimage_problems = copy.deepcopy(guess_to_try.logimage_problems)
                     new_logimage_problems.modify(guess_to_try.modification)
@@ -174,7 +171,7 @@ class LogimageProblems:
             self.modifications.append(modification)
     
     def modify(self,modification:Modification):
-        problem_to_modify = self.get_problem_from_coordinates(modification.problem_coordinates)
+        problem_to_modify = copy.deepcopy(self.get_problem_from_coordinates(modification.problem_coordinates))
         problem_to_modify[modification.cell_index] = modification.new_cell
         dimension = modification.problem_coordinates.dimension
         index = modification.problem_coordinates.index
@@ -189,7 +186,6 @@ class LogimageProblems:
     def solve_problem(self, dimension, index):
         problem_to_solve = self.__getitem__(dimension)[index]
         solved_problem = problem_to_solve.solve()
-        # modified_cells_index = problem_to_solve.get_updated_state_indexes(solved_problem)
         self.__setitem__(pos = (dimension,index),value=solved_problem)
         problem_coordinates = ProblemCoordinates(dimension,index)
         if problem_coordinates in self.candidate_problems:
@@ -222,7 +218,7 @@ class LogimageProblems:
                 output_number_of_undefined = number_of_undefined
                 chosen_coordinates = problem_coordinates
         return chosen_coordinates
-    
+
     def get_candidate_and_solve_problem(self):
         chosen_coordinates = self.select_candidate_problem()
         if chosen_coordinates is None:
@@ -252,11 +248,31 @@ class LogimageProblems:
         if cell_after_modification.cell_state == CellState.undefined:
             return True
 
-    def get_guess_candidate(self):
-        index = 0
+    def get_guess_candidate(self,heuristic = "last_modifications"):
+        if heuristic == "last_modifications":
+            problem_coordinates, undefined_cell_index = self.get_guess_candidate_in_last_modifications()
+        elif heuristic == "least_undefined":
+            problem_coordinates, undefined_cell_index = self.get_guess_candidate_in_problems_with_least_undefined()
+        if problem_coordinates is not None:
+            return problem_coordinates, undefined_cell_index
+        else:
+            for index, problem in enumerate(self.row_problems):
+                first_undefined_cell_index = problem.first_undefined_cell_index()
+                if first_undefined_cell_index is not None:
+                    problem_coordinates = ProblemCoordinates(0,index)
+                    return problem_coordinates, first_undefined_cell_index
+                else:
+                    continue
+    
+    def get_guess_candidate_in_last_modifications(self):
         modifications_to_scan = self.modifications[::-1]
-        while index < len(modifications_to_scan):
-            modification = modifications_to_scan[index]
+        problem_coordinates, undefined_cell_index = self.get_guess_candidate_in_modifications(modifications_to_scan)
+        return problem_coordinates, undefined_cell_index
+    
+    def get_guess_candidate_in_modifications(self, modifications):
+        index = 0
+        while index < len(modifications):
+            modification = modifications[index]
             problem_coordinates = modification.problem_coordinates
             modification_cell_index = modification.cell_index
             problem_to_scan = self.__getitem__(problem_coordinates.dimension)[problem_coordinates.index]
@@ -271,13 +287,37 @@ class LogimageProblems:
                     if self.is_neighbour_cell_undefined(problem_to_scan,modification_cell_index,gap):
                         return problem_coordinates, modification_cell_index + gap
             index += 1
-        for index, problem in enumerate(self.row_problems):
-            first_undefined_cell_index = problem.first_undefined_cell_index()
-            if first_undefined_cell_index is not None:
-                problem_coordinates = ProblemCoordinates(0,index)
-                return problem_coordinates, first_undefined_cell_index
-            else:
+        return None, None
+
+    def find_problem_coordinates_with_least_undefined(self):
+        output_problem_coordinates = None
+        min_number_of_undefined = None
+        for problem_index,problem in self.row_problems.items():
+            if problem.first_undefined_cell_index() is None:
                 continue
+            else:
+                number_of_undefined = problem.get_number_of_cell_in_state(CellState.undefined)
+                if min_number_of_undefined is None:
+                    min_number_of_undefined = number_of_undefined
+                    output_problem_coordinates = ProblemCoordinates(0,problem_index)
+                elif number_of_undefined < min_number_of_undefined:
+                    min_number_of_undefined = number_of_undefined
+                    output_problem_coordinates = ProblemCoordinates(0,problem_index)
+        for problem_index,problem in self.column_problems.items():
+            if problem.first_undefined_cell_index() is None:
+                continue
+            else:
+                number_of_undefined = len([cell for cell in problem if cell.cell_state == CellState.undefined])
+                if number_of_undefined < min_number_of_undefined:
+                    min_number_of_undefined = number_of_undefined
+                    output_problem_coordinates = ProblemCoordinates(0,problem_index)
+        return output_problem_coordinates
+    
+    def get_guess_candidate_in_problems_with_least_undefined(self):
+        problem_with_least_undefined_coordinates = self.find_problem_coordinates_with_least_undefined()
+        modifications_to_scan = [modification for modification in self.modifications if modification.problem_coordinates == problem_with_least_undefined_coordinates]
+        problem_coordinates, undefined_cell_index = self.get_guess_candidate_in_modifications(modifications_to_scan)
+        return problem_coordinates, undefined_cell_index
 
     def solve(self):
         self.scan_fully_defined_problems()

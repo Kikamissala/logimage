@@ -419,6 +419,8 @@ class Problem:
 
     def identify_rule_element_indexes_on_complete_blocks(self, rule_element_indexes):
         list_of_identified_full_blocks, first_undefined_cell_index, last_undefined_cell_index = self.get_elements_for_identifying_rule_element_indexes()
+        if (first_undefined_cell_index is None) & (len(list_of_identified_full_blocks) != len(self.rule)):
+            raise InvalidProblem("Invalid solution of problem doesn't correspond to rule")
         number_of_rule_elements_per_value = Counter(self.rule)
         number_of_blocks_per_len = Counter([full_block.block_len for full_block in list_of_identified_full_blocks])
         for block_index, full_block in enumerate(list_of_identified_full_blocks):
@@ -845,21 +847,30 @@ class Problem:
         solved_problem = self.update_cells_list(output_cells_list)
         return solved_problem
 
+    def check_validity_when_all_full_cell_found(self):
+        full_blocks_list = self.identify_full_blocks()
+        block_len_list = [full_block.block_len for full_block in full_blocks_list]
+        deducted_rule = Rule(block_len_list)
+        if deducted_rule != self.rule:
+            raise InvalidProblem("all full cell found but solution invalid")
+
     def solve(self):
         base_problem = copy.deepcopy(self)
         output_problem = copy.deepcopy(self)
         output_problem.identify_and_update_rule_element_indexes()
+        if output_problem.is_solved():
+            self.check_validity_when_all_full_cell_found()
+            return output_problem
         splitted_problem = output_problem.split_if_possible()
         if len(splitted_problem) == 2:
             first_problem = splitted_problem[0]
             second_problem = splitted_problem[1]
             return first_problem.solve() + second_problem.solve()
         else:
-            if output_problem.is_solved():
-                return output_problem
-            elif output_problem.is_line_fully_defined_by_rule():
+            if output_problem.is_line_fully_defined_by_rule():
                 output_problem = output_problem.fully_defined_solve()
             elif output_problem.all_full_cell_found():
+                self.check_validity_when_all_full_cell_found()
                 output_problem = output_problem.all_full_cell_found_solve()
             else:
                 if output_problem.is_subject_to_overlap_solving():
