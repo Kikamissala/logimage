@@ -21,9 +21,13 @@ To represent a grid to solve with clues, we use a txt file like this :
 
 ```
 row_rules
-2,2
+1,1
+1
+1,1
 column_rules
-2,2
+1,1
+1
+1,1
 ```
 
 Some examples in [rules_examples](/rules_examples)
@@ -31,5 +35,9 @@ Some examples in [rules_examples](/rules_examples)
 ## Launch a solve
 
 ```
-python solve_logimage.md /path/to/picross.txt
+python solve_logimage.md rules_examples/test.txt
 ```
+
+It should render this :
+
+![](test_picross.png)
